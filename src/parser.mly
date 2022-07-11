@@ -96,9 +96,8 @@ unique_term: t=term EOF { t }
   parsing_error (Position.lex_join $startpos $endpos) "Syntax error."
 }
 
-
 element:
-  a=definition { Definition (false, a) }
+| a=definition { Definition (false, a) }
 | DEBUG a=definition { Definition (true, a) }
 | a=atoms      { Atoms a }
 | a=types_def  { Types a }
@@ -110,7 +109,7 @@ types_def: TYPE ts=separated_nonempty_list(TYPE_AND, name_and_typ) { ts }
 name_and_typ: name=TID EQUAL t=typ { (name, t) }
 
 term:
-  a=abstraction { a }
+| a=abstraction { a }
 | d=definition IN t=term { annot $startpos $endpos (Let (fst d, snd d, t)) }
 (*| lhs=term b=binop rhs=term { App (App (Primitive b, lhs), rhs) }*)
 | t=simple_term { t }
@@ -118,12 +117,12 @@ term:
 | IF t=term THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,TBase TTrue,t1,t2)) }
 
 simple_term:
-  a=simple_term b=atomic_term { annot $startpos $endpos (App (a, b)) }
+| a=simple_term b=atomic_term { annot $startpos $endpos (App (a, b)) }
 | FST a=atomic_term { annot $startpos $endpos (Projection (Fst, a)) }
 | SND a=atomic_term { annot $startpos $endpos (Projection (Snd, a)) }
 | a=atomic_term s=infix_term b=atomic_term
-{ let app1 = annot $startpos $endpos (App (s, a)) in
-  annot $startpos $endpos (App (app1, b)) }
+  { let app1 = annot $startpos $endpos (App (s, a)) in
+    annot $startpos $endpos (App (app1, b)) }
 | p=prefix_term a=atomic_term { annot $startpos $endpos (App (p, a)) }
 | a=atomic_term POINT id=identifier { annot $startpos $endpos (Projection (Field id, a)) }
 | a=atomic_term DIFF id=identifier { annot $startpos $endpos (RecordUpdate (a,id,None)) }
@@ -141,45 +140,45 @@ prefix_term:
   x=prefix { annot $startpos $endpos (var_or_primitive x) }
 
 atomic_term:
-  x=identifier { annot $startpos $endpos (var_or_primitive x) }
+| x=identifier { annot $startpos $endpos (var_or_primitive x) }
 | l=literal { annot $startpos $endpos (Const l) }
 | MAGIC { annot $startpos $endpos (Abstract (TBase TEmpty)) }
 | LBRACE fs=separated_list(COMMA, field_term) RBRACE
-{ record_update (annot $startpos $endpos (Const EmptyRecord)) fs }
+  { record_update (annot $startpos $endpos (Const EmptyRecord)) fs }
 | LPAREN ts=separated_list(COMMA, term) RPAREN
-{ tuple (Position.lex_join $startpos $endpos) ts }
+  { tuple (Position.lex_join $startpos $endpos) ts }
 | LBRACE a=atomic_term WITH fs=separated_nonempty_list(COMMA, field_term) RBRACE
-{ record_update a fs }
+  { record_update a fs }
 | LBRACKET lst=separated_list(SEMICOLON, term) RBRACKET
-{ list_of_elts (Position.lex_join $startpos $endpos) lst }
+  { list_of_elts (Position.lex_join $startpos $endpos) lst }
 
 literal:
 (*f=LFLOAT { Float f }*)
-  i=lint   { Int i }
-| c=LCHAR  { Char c }
-| b=LBOOL  { Bool b }
-| s=LSTRING{ String s }
-| LUNIT    { Unit }
-| LNIL     { Nil }
+| i=lint    { Int i }
+| c=LCHAR   { Char c }
+| b=LBOOL   { Bool b }
+| s=LSTRING { String s }
+| LUNIT     { Unit }
+| LNIL      { Nil }
 
 lint:
 | i=LINT { i }
-| LPAREN PLUS i=LINT RPAREN { i }
+| LPAREN PLUS  i=LINT RPAREN {  i }
 | LPAREN MINUS i=LINT RPAREN { -i }
 
 %inline abstraction:
-  FUN LPAREN ty=typ RPAREN hd=identifier tl=annoted_identifier* ARROW t=term
-{
-  let t = multi_param_abstraction $startpos $endpos tl t in
-  annot $startpos $endpos (Lambda (AArrow ty, hd, t))
-}
+| FUN LPAREN ty=typ RPAREN hd=identifier tl=annoted_identifier* ARROW t=term
+  {
+    let t = multi_param_abstraction $startpos $endpos tl t in
+    annot $startpos $endpos (Lambda (AArrow ty, hd, t))
+  }
 | FUN ais=annoted_identifier+ ARROW t = term
-{
-  multi_param_abstraction $startpos $endpos ais t
-}
+  {
+    multi_param_abstraction $startpos $endpos ais t
+  }
 
 %inline annoted_identifier:
-  arg = identifier { (Unnanoted, arg) }
+| arg = identifier { (Unnanoted, arg) }
 | LPAREN arg = identifier COLON ty = typ RPAREN { (ADomain ty, arg) }
 
 %inline definition:
@@ -194,24 +193,24 @@ lint:
 | TIMES { Mul }*)
 
 identifier:
-  | x=ID | LPAREN x=prefix RPAREN | LPAREN x=infix RPAREN { x }
+| x=ID | LPAREN x=prefix RPAREN | LPAREN x=infix RPAREN { x }
 
 infix:
-  | x=INFIX {x}
-  | DIV   {"/"}
-  | TIMES {"*"}
-  | PLUS  {"+"}
-  | MINUS {"-"}
-  | EQUAL {"="}
-  | LT    {"<"}
-  | GT    {">"}
+| x=INFIX {x}
+| DIV   {"/"}
+| TIMES {"*"}
+| PLUS  {"+"}
+| MINUS {"-"}
+| EQUAL {"="}
+| LT    {"<"}
+| GT    {">"}
 
 prefix:
-  | x=PREFIX {x}
-  | INTERROGATION_MARK {"?"}
+| x=PREFIX {x}
+| INTERROGATION_MARK {"?"}
 
 typ:
-  t=atomic_typ { t }
+| t=atomic_typ { t }
 | lhs=typ ARROW rhs=typ { TArrow (lhs, rhs) }
 | NEG t=typ { TNeg t }
 | lhs=typ OR rhs=typ  { TCup (lhs, rhs) }
@@ -219,7 +218,7 @@ typ:
 | lhs=typ DIFF rhs=typ  { TDiff (lhs, rhs) }
 
 atomic_typ:
-  x=type_constant { TBase x }
+| x=type_constant { TBase x }
 | s=TID { TCustom s }
 | s=TVAR { TVar s }
 | LPAREN lhs=typ COMMA rhs=typ RPAREN { TPair (lhs, rhs) }
@@ -229,12 +228,12 @@ atomic_typ:
 | LBRACKET re=typ_re RBRACKET { TSList re }
 
 typ_field:
-  id=identifier EQUAL t=typ { (id, t, false) }
+| id=identifier EQUAL t=typ { (id, t, false) }
 | id=identifier EQUAL_OPT t=typ { (id, t, true) }
 
 type_constant:
-(*  FLOAT { TyFloat }*)
-  INT { TInt (None, None) }
+(* | FLOAT { TyFloat }*)
+| INT { TInt (None, None) }
 | i=lint { TInt (Some i, Some i) }
 | i=type_interval { i }
 | CHAR { TChar }
@@ -255,7 +254,7 @@ type_interval:
 | LBRACKET SEMICOLON ub=lint RBRACKET { TInt (None, Some ub) }
 | LBRACKET lb=lint SEMICOLON RBRACKET { TInt (Some lb, None) }
 | LBRACKET SEMICOLON RBRACKET { TInt (None, None) }*)
-  lb=lint DOUBLEDASH ub=lint { TInt (Some lb, Some ub) }
+| lb=lint DOUBLEDASH ub=lint { TInt (Some lb, Some ub) }
 | TIMES DOUBLEDASH ub=lint { TInt (None, Some ub) }
 | lb=lint DOUBLEDASH TIMES { TInt (Some lb, None) }
 | TIMES DOUBLEDASH TIMES { TInt (None, None) }
@@ -265,7 +264,7 @@ type_interval:
 }*)
 
 typ_re:
-  re=seq_re { re }
+| re=seq_re { re }
 | re=simple_re { re }
 | { ReEpsilon }
 (* rs=separated_list(SEMICOLON, simple_re)
@@ -275,14 +274,14 @@ seq_re:
   lhs=typ_re SEMICOLON rhs=simple_re { ReSeq (lhs, rhs) }
 
 simple_re:
-  re=atomic_re { re }
+| re=atomic_re { re }
 | re=alt_re { re }
 
 alt_re:
   lhs=simple_re REGEX_OR rhs=atomic_re { ReAlt (lhs, rhs) }
 
 atomic_re:
-  t=typ { ReType t }
+| t=typ { ReType t }
 | LPAREN re=alt_re RPAREN { re }
 | LPAREN re=seq_re RPAREN { re }
 | re=atomic_re TIMES { ReStar re }

@@ -5,7 +5,7 @@ let bool = <Bool>
 *                                                *
 *           IMPLICITLY ANNOTATED VERSIONS        *
 *                                                *
-**************************************************)   
+**************************************************)
 
 
 let lnot = fun a ->
@@ -31,7 +31,7 @@ let is_bool = fun x -> if x is Bool then true else false
 *                                                *
 *           EXPLICITLY ANNOTATED VERSIONS        *
 *                                                *
-**************************************************)   
+**************************************************)
 
 
 let lnot = fun (a : Any) ->
@@ -74,11 +74,11 @@ let test_6 = fun x ->
 
 
 (************************************
- * 
- * Example foo function from slides
- *
+ *                                  *
+ * Example foo function from slides *
+ *                                  *
  ************************************)
-  
+
 let trim = <String -> String>
 let (+) = <Int -> Int -> Int>
 let is_int_or_fun = fun x ->
@@ -89,7 +89,7 @@ let foo = fun x ->
 
 
 
-  
+
 (************************************
  * Examples from the previous paper *
  * the one submitted at SciComPro   *
@@ -98,7 +98,8 @@ let foo = fun x ->
 let (+) = <Int -> Int -> Int>
 
 let two_steps =
-  let f = fun (( Any\Int -> (Any, Any)\(Int,Int) ) & ( Int -> (Int,Int) )) x -> magic
+  let f = fun (( Any\Int -> (Any, Any)\(Int,Int) )
+              & ( Int -> (Int,Int) )) x -> magic
   in
   fun x ->
     if snd (f x) is Int
@@ -215,7 +216,8 @@ let records_ok5 =
 
 let paper_example1 =
   fun x ->
-    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..} then true else false
+    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..}
+    then true else false
 
 let paper_example2 =
   fun x ->
@@ -227,16 +229,19 @@ let paper_example3 =
 
 let paper_example4 =
   fun x ->
-    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..} then x.b else false
+    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..}
+    then x.b else false
 
 let paper_example =
   fun ({..} -> Bool) x ->
-    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..} then x.b else false
+    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..}
+    then x.b else false
 
 
 let paper_example_implicit =
   fun  x ->
-    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..} then x.b else false
+    if {x with a=0} is {a=Int, b=Bool ..} | {a=Bool, b=Int ..}
+    then x.b else false
 
 type Document = { nodeType=9 ..}
 and NodeList = Nil | (Node, NodeList)
@@ -255,17 +260,25 @@ let is_empty_node_impl = fun x ->
   else if x.childNodes is Nil then true else false
 
 
-type InferredType =  ({ nodeType=3, isElementContentWhiteSpace=Any, childNodes=?Empty .. } |
-{ nodeType=3, isElementContentWhiteSpace=Any, childNodes=[  ] .. } |
-{ nodeType=3, isElementContentWhiteSpace=Any, childNodes=Any \ [  ] .. } -> Any) &
-({ nodeType=Any \ (3 | 9), isElementContentWhiteSpace=Any, childNodes=[  ] .. } |
-{ nodeType=Any \ (3 | 9), isElementContentWhiteSpace=?Empty, childNodes=[  ] .. } -> True) &
-({ nodeType=9, isElementContentWhiteSpace=Any, childNodes=?Empty .. } |
-{ nodeType=9, isElementContentWhiteSpace=Any, childNodes=[  ] .. } |
-{ nodeType=Any \ 3, isElementContentWhiteSpace=Any, childNodes=Any \ [  ] .. } |
-{ nodeType=9, isElementContentWhiteSpace=?Empty, childNodes=?Empty .. } |
-{ nodeType=9, isElementContentWhiteSpace=?Empty, childNodes=[  ] .. } |
-{ nodeType=Any \ 3, isElementContentWhiteSpace=?Empty,childNodes=Any \ [  ] .. } -> False)
+type InferredType =
+  ({ nodeType=3, isElementContentWhiteSpace=Any, childNodes=?Empty .. }
+   | { nodeType=3, isElementContentWhiteSpace=Any, childNodes=[  ] .. }
+   | { nodeType=3, isElementContentWhiteSpace=Any, childNodes=Any \ [  ] .. } ->
+      Any)
+  &
+    ({ nodeType=Any \ (3 | 9), isElementContentWhiteSpace=Any,
+                childNodes=[  ] .. }
+     | { nodeType=Any \ (3 | 9), isElementContentWhiteSpace=?Empty,
+                  childNodes=[  ] .. } -> True)
+  &
+    ({ nodeType=9, isElementContentWhiteSpace=Any, childNodes=?Empty .. }
+     | { nodeType=9, isElementContentWhiteSpace=Any, childNodes=[  ] .. }
+     | { nodeType=Any \ 3, isElementContentWhiteSpace=Any,
+                  childNodes=Any \ [  ] .. }
+     | { nodeType=9, isElementContentWhiteSpace=?Empty, childNodes=?Empty .. }
+     | { nodeType=9, isElementContentWhiteSpace=?Empty, childNodes=[  ] .. }
+     | { nodeType=Any \ 3, isElementContentWhiteSpace=?Empty,
+                  childNodes=Any \ [  ] .. } -> False)
 
 let is_empty_node_perfect_annotations  = fun (InferredType) x ->
   if x.nodeType is 9 then false
@@ -361,7 +374,8 @@ let f v =
 
 (*
 
-let f (g : ((<e>[] -> <a>[]) & ((S1\<e>[]) -> <b>[]))) (v : S1) : (S1 \ (<c>[<a>[] <b>[]])) =
+let f (g : ((<e>[] -> <a>[]) & ((S1\<e>[]) -> <b>[]))) (v : S1) :
+      (S1 \ (<c>[<a>[] <b>[]])) =
   match v with
   | <c>[ (x & <a>[] ) _ ] -> <c> [ x x ]
   | <c>[ x _ ] -> <c>[ x x ]
@@ -384,7 +398,7 @@ let f (g : ((<e>[] -> <a>[]) & ((S1\<e>[]) -> <b>[]))) (v : S1) : (S1 \ (<c>[<a>
  Interesting points:
   - example2: does not need the annotation, while TH&F yes
   - example6: not typable with the annotation Int|String
-    (as expected), but if we remove annotations becomes typable. 
+    (as expected), but if we remove annotations becomes typable.
     That is our system finds the right constraints to make the
     expression typable
   - in examples 10 11 12 we do not have to assume that p is
@@ -399,7 +413,7 @@ let f (g : ((<e>[] -> <a>[]) & ((S1\<e>[]) -> <b>[]))) (v : S1) : (S1 \ (<c>[<a>
 
 atom no
 
-let and_ = fun x -> fun y -> 
+let and_ = fun x -> fun y ->
      if x is True then if y is True then y else false else false
 
 let and2_ = fun x ->
@@ -483,17 +497,18 @@ let implict7 = fun x -> fun y ->
    add x (strlen y) else 0
 
 
-let example8 = fun (x : Any) -> 
+let example8 = fun (x : Any) ->
   if or_ (is_int x) (is_string x) is True then true else false
 
-let implict8 = fun x -> 
+let implict8 = fun x ->
   if or_ (is_int x) (is_string x) is True then true else false
 
 
 let example9 = fun (x : Any) ->
   if
-   (if is_int x is True then is_int x else is_string x)
-   is True then  f x else 0
+    (if is_int x is True then is_int x else is_string x)
+      is True
+  then  f x else 0
 
 let implict9 = fun x  ->
   if
@@ -515,10 +530,10 @@ let implict11 = fun p ->
   if and_ (is_int (fst p)) (is_int (snd p)) is True then g p else no
 
 
-let example12 = fun (p : (Any, Any)) -> 
+let example12 = fun (p : (Any, Any)) ->
   if is_int (fst p) is True then true else false
 
-let implict12 = fun p -> 
+let implict12 = fun p ->
   if is_int (fst p) is True then true else false
 
 
@@ -622,8 +637,6 @@ let or_ = fun x -> fun y ->
 
 (* Code 2 final version *)
 
-                   
-
 type Falsy = False | "" | 0
 type Truthy = ~Falsy
 
@@ -641,8 +654,6 @@ let or_ = fun x -> fun y ->
   not_ (and_ (not_ x) (not_ y))
 
 
-
-
 (* Code 3 from  the submission *)
 
 let strlen = <(String -> Int)>
@@ -655,9 +666,9 @@ let and_ = fun x -> fun y ->
   else false
 
 let is_int = fun x ->
-  if x is Int then true else false  
+  if x is Int then true else false
  *)
-            
+
 let example14 =
   fun input -> fun extra ->
   if and_ ( is_int input ) ( is_int ( fst extra )) is True
@@ -676,21 +687,21 @@ let and_ = fun x -> fun y ->
   then true else false
   else false
  *)
-            
+
 let is_int = fun x ->
-  if x is Int then true else false  
+  if x is Int then true else false
 
 let is_string = fun x ->
-  if x is String then true else false  
-  
+  if x is String then true else false
+
 let example6_wrong =
   fun (x : Int | String ) -> fun ( y : Any ) ->
-  if and_ (is_int x) (is_string y) is True 
+  if and_ (is_int x) (is_string y) is True
   then x + (strlen y) else strlen x
 
 let example6_ok =
   fun x -> fun y ->
-  if and_ (is_int x) (is_string y) is True 
+  if and_ (is_int x) (is_string y) is True
   then x + (strlen y) else strlen x
 (* Code 5 from the submission *)
 
@@ -735,7 +746,7 @@ fun n ->
 (* Très intéressant ... il trouve ce type surchargé
 
   ((Int -> Bool | Int) -> Int -> Bool)
-& ((Int,Bool | Int) -> Any -> Bool) 
+& ((Int,Bool | Int) -> Any -> Bool)
 
   c-a-d ca marche avec Any seulement si c'est un produit
 *)
@@ -785,18 +796,18 @@ let append = <String -> String -> String>
 let (+) = <Int -> Int -> Int>
 
 let sum = fun x ->
-     if fst x is String 
+     if fst x is String
         then append (fst x) (snd x)
         else (fst x) + (snd x)
 
 let sum_cur = fun x y ->
-     if x is String 
+     if x is String
         then append x y
         else x + y
 
 
 let sum_cur_expl_wrong = fun (x: Int|String) -> fun (y: Int|String) ->
-     if x is String 
+     if x is String
         then append x y
         else x + y
 
@@ -811,16 +822,17 @@ and Output = [Bool] (* Empty *)
 
 type X = X -> Input -> Output
 
-let fixpoint = fun (((Input -> Output) -> Input -> Output ) -> (Input -> Output)) f ->
-      let delta = fun ( X -> (Input -> Output) ) x ->
-         f ( fun (Input -> Output) v -> ( x x v ))
-       in delta delta
+let fixpoint =
+  fun (((Input -> Output) -> Input -> Output ) -> (Input -> Output)) f ->
+    let delta = fun ( X -> (Input -> Output) ) x ->
+      f ( fun (Input -> Output) v -> ( x x v ))
+    in delta delta
 
 (* with less annotations *)
 let fixpoint2 = fun (f:((Input -> Output) -> Input -> Output )) ->
-      let delta = fun ( x: X )  ->
-         f ( fun  v -> ( x x v ))
-       in delta delta
+  let delta = fun ( x: X )  ->
+    f ( fun  v -> ( x x v ))
+  in delta delta
 
 let id = fun ((Input -> Output) -> (Input -> Output)) x -> x
 
@@ -835,7 +847,7 @@ let fac2 =  fun (f : Int -> Int) ->
 let fac3 =  fun (f : Int -> Int) ->
   fun x -> if x is 0 then 1 else x * (f(x-1))
 
-                   
+
 (*let factorial = fixpoint fac3*)
 
 
@@ -851,24 +863,24 @@ let fac3 =  fun (f : Int -> Int) ->
 *                               *
 *********************************)
 
-type Alpha = Int | Char 
+type Alpha = Int | Char
 type Beta = Int | String
-type ABList = Nil | ( Alpha & Beta , ABList) 
-type BList = Nil | ( Beta , BList) 
+type ABList = Nil | ( Alpha & Beta , ABList)
+type BList = Nil | ( Beta , BList)
 
 
 (* filter should be of type ((Alpha->True) & ((Any\Alpha)->False)) ->  BList ->  ABList *)
-                 
+
 let rfilter = < ((Alpha->True) & ((Any\Alpha)->False)) ->  BList ->  ABList>
-                                                                       
+
 let filter = fun ( p : ((Alpha -> True) & ((Any\Alpha) -> False)) ) ->
   fun ( l : BList) ->
     if l is Nil then nil else
        if p (fst l) is True
         then ( (fst l), (rfilter p (snd l)))
-        else rfilter p (snd l)          
+        else rfilter p (snd l)
 
-	
+
 (**************************
  *                        *
  *     Misc examples      *
@@ -881,14 +893,13 @@ let typeable_in_racket =
 
 let how_to_type_that =
   let snd_ = fun x -> (fun y -> y) in
-  (snd_ 0 42) + 1 
+  (snd_ 0 42) + 1
 (* becomes
 bind snd = lambda x. lambda y. y in
 bind aux1 = snd 0 in
 bind aux2 = aux1 42 in
 bind aux3 = aux2 + 1
 *)
-
 
 
 let how_to_type_that_harder =
@@ -899,7 +910,7 @@ let how_to_type_that_harder_explicit =
   let snd_ = fun x -> (fun (y : Int) -> y) in
   (snd_ true ( snd_ 42 3) ) + (snd_ "ok"  3)
 
-  
+
 (* function types for parameters cannot be inferred *)
 
 let negate_fail = fun f -> (fun x -> lnot (f x))
@@ -932,7 +943,6 @@ let test_that_should_need_abs_union_but_actually_seems_not =
 (* Kind of bug? *)
 
 
-
 let f = <(Any\Int -> (Any\Int, Any\Int) ) & ( Int -> (Int,Int) )>
 let f = <(Any\Int -> (Any, Any)\(Int,Int) ) & ( Int -> (Int,Int) )>
 
@@ -963,34 +973,33 @@ let two_steps_not2 =
     else x
 
 
-
 (*************************************
 
-        TypeScript 4.4b examples  
+        TypeScript 4.4b examples
 
  *************************************)
 
 let toUpperCase = <String -> String>
 
 let new_typescript_foo = fun arg ->
-  let argIsString = 
-    if arg is String then 
-      true 
-    else 
-      false 
+  let argIsString =
+    if arg is String then
+      true
+    else
+      false
     in
-  if argIsString is True then 
+  if argIsString is True then
     toUpperCase arg
   else
     42
 
-let ( ** ) = <Int -> Int -> Int>   
-                              
-(* 
-   explicitly typed version of the area function 
-   the deduced type is Shape -> Int 
+let ( ** ) = <Int -> Int -> Int>
+
+(*
+   explicitly typed version of the area function
+   the deduced type is Shape -> Int
 *)
-                              
+
 type Shape =
       { kind = "circle", radius = Int }
     | { kind = "square", sideLength = Int }
@@ -999,41 +1008,39 @@ let area = fun (shape: Shape) ->
     let isCircle = if shape.kind is "circle" then true else false in
     if isCircle is True then
       (* We know we have a circle here! *)
-        (shape.radius) ** 7 
-    else 
+        (shape.radius) ** 7
+    else
       (* We know we're left with a square here! *)
         (shape.sideLength) ** 2
 
-
-(* 
+(*
    implicitly typed version of area. The type deduced
-   by our system is equivalent to    
-     { kind="circle"  radius=Int .. } 
-   | { kind=(¬"circle") sideLength=Int  .. }  -> Int    
+   by our system is equivalent to
+     { kind="circle"  radius=Int .. }
+   | { kind=(¬"circle") sideLength=Int  .. }  -> Int
 *)
-    
+
 let area_implicit = fun shape ->
     let isCircle = if shape.kind is "circle" then true else false in
     if isCircle is True then
       (* We know we have a circle here! *)
-        (shape.radius) ** 7 
-    else 
+        (shape.radius) ** 7
+    else
       (* We know we're left with a square here! *)
         (shape.sideLength) ** 2
 
-    
-(* 
-  explicitly-typed version of the function f 
+(*
+  explicitly-typed version of the function f
   The type deduced for the function is:
   (Bool -> Bool) &
   (String -> String ) &
   (Int -> Int)
-*)                   
+*)
 
 let typescript_beta_f =  fun (x : String | Int | Bool) ->
   let isString = if typeof x is "String" then true else false in
   let isNumber = if typeof x is "Number" then true else false in
-  let isStringOrNumber =  or_ isString isNumber in                                         
+  let isStringOrNumber =  or_ isString isNumber in
   if isStringOrNumber is True then x else x
 
 
@@ -1042,14 +1049,14 @@ let typescript_beta_f =  fun (x : String | Int | Bool) ->
     (Bool -> Bool) &
     (String -> String ) &
     (Int -> Int) &
-    (¬(Bool∣String|Int) ->  ¬(Bool∣String|Int)) 
+    (¬(Bool∣String|Int) ->  ¬(Bool∣String|Int))
 *)
 
-  
+
 let typescript_beta_f_implicit =  fun x ->
   let isString = if typeof x is "String" then true else false in
   let isNumber = if typeof x is "Number" then true else false in
-  let isStringOrNumber =  or_ isString isNumber in                                         
+  let isStringOrNumber =  or_ isString isNumber in
   if isStringOrNumber is True
     then x
     else x
@@ -1060,7 +1067,7 @@ let example_kent_section_5_4 y =
   if is_a_number false then succ y else 0
 
 (* versions without typeof *)
-  
+
 let idStringOrInt = <String | Int -> String | Int>
 let idBool = <Bool -> Bool>
 
@@ -1077,16 +1084,16 @@ let new_typescript_f = fun (x : String | Int | Bool) ->
 let typescript_beta_f =  fun (x : String | Int | Bool) ->
   let isString = if typeof x is "String" then true else false in
   let isNumber = if typeof x is "Number" then true else false in
-  let isStringOrNumber =  lor isString isNumber in                                         
+  let isStringOrNumber =  lor isString isNumber in
   if isStringOrNumber is True then x else x
 
 let typescript_beta_f_implicit =  fun x ->
   let isString = if typeof x is "String" then true else false in
   let isNumber = if typeof x is "Number" then true else false in
-  let isStringOrNumber =  lor isString isNumber in                                         
+  let isStringOrNumber =  lor isString isNumber in
   if isStringOrNumber is True then x else x
-                                            
-(*  
+
+(*
 type RBtree = Btree | Rtree;;
 type Btree = [] | <black elem=Int>[ RBtree RBtree ];;
 type Rtree = <red elem=Int>[ Btree Btree ];;
@@ -1117,8 +1124,8 @@ let ins_aux ( [] -> Rtree ; Btree\[] -> RBtree\[]; Rtree -> Rtree|Wrongtree)
 atom blk
 atom red
 atom emp
-  
-  
+
+
 type RBtree = Btree | Rtree
  and Btree = Emp | (Blk,[ Int; RBtree; RBtree ])
  and Rtree = (Red,[ Int; Btree; Btree ])
@@ -1130,7 +1137,7 @@ type RBtree = Btree | Rtree
 let balance = fun (
                 (Unbalanced -> Rtree)
               & (Rtree -> Rtree)
-              & (Btree\Emp -> Btree\Emp) 
+              & (Btree\Emp -> Btree\Emp)
               & (Emp -> Emp )
               & (Wrongleft -> Wrongleft)
               & (Wrongright -> Wrongright)
@@ -1138,7 +1145,7 @@ let balance = fun (
 
 
 
-     
+
 (*******************************
  *                             *
  *  Examples for polymorphism  *
@@ -1172,7 +1179,7 @@ let and_ = fun x -> fun y ->
 
 let test = fun x ->
    if fst x is Falsy then x else succ (fst x)
-                                   
+
 (* expected type:
       ('a & Falsy -> 'a & Falsy)
      &(Int -> Int )
@@ -1183,17 +1190,17 @@ let test = fun x ->
  *         higher order parameters        *
  *                                        *
  ******************************************)
-  
-let lnot = fun (x : Bool) -> if x is True then false else true   
+
+let lnot = fun (x : Bool) -> if x is True then false else true
 
 let ho = fun f -> fun x ->  if x is String then f x else x
 
 (* expected type [first type of the intersection useless]:
-    ((String -> 'a) -> 'b -> ('a | 'b))                             
-  & ((String -> 'a) -> String -> 'a)                       
+    ((String -> 'a) -> 'b -> ('a | 'b))
+  & ((String -> 'a) -> String -> 'a)
   & (Any -> 'a&¬String -> 'a&¬String)
  *)
-                          
+
 let ho0 = fun f -> fun b -> if b is True then f b else lnot b
 
 (* expected type:
@@ -1201,11 +1208,15 @@ let ho0 = fun f -> fun b -> if b is True then f b else lnot b
    or more precisely
      ( (True -> 'a) -> True -> 'a )
    & ( Any ->  False -> True )
- *)                          
-                          
-let ho0_explicit = fun  ((True -> 'a) -> Bool -> ( 'a | Bool)) f b -> if b is True then f b else lnot b
+ *)
 
-let ho0_moreexpl = fun  (((True -> 'a) -> True -> 'a) & (Any -> False -> True)) f b -> if b is True then f b else lnot b
+let ho0_explicit =
+  fun  ((True -> 'a) -> Bool -> ( 'a | Bool)) f b ->
+    if b is True then f b else lnot b
+
+let ho0_moreexpl =
+  fun  (((True -> 'a) -> True -> 'a) & (Any -> False -> True)) f b ->
+    if b is True then f b else lnot b
 
 let ho_fetish_ill = fun f -> fun g -> fun x -> if g x is Int then f (g x) else 0
 
@@ -1215,97 +1226,108 @@ let ho_fetish_ill = fun f -> fun g -> fun x -> if g x is Int then f (g x) else 0
    &( ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b | 0 )
 *)
 
-let ho_fetish_explicit = fun   ( ( ('a & Int -> 'b ) -> ( 'c -> 'a & Int) -> 'c -> 'b )
-                          &( Any -> ('c -> 'a \ Int) -> 'c -> 0 )
-                          &( ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b | 0 ) 
-                         ) f g x -> if g x is Int then f (g x) else 0
+let ho_fetish_explicit =
+  fun   ( ( ('a & Int -> 'b ) -> ( 'c -> 'a & Int) -> 'c -> 'b )
+          &( Any -> ('c -> 'a \ Int) -> 'c -> 0 )
+          &( ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b | 0 )
+        ) f g x -> if g x is Int then f (g x) else 0
 
 let ho2 = fun f -> fun x -> if x is Int then (f x) + x else lnot x
 
 (* expected type: (Int -> Int) -> (Int | Bool) -> (Int | Bool)
-   more precise: (Int -> Int) -> Int -> Int) & (Any -> Bool -> Bool)
-   even more:    (Int -> Int) -> Int -> Int) & (Any -> (True -> False) & (False -> True))
- *)                          
+   more precise:  (Int -> Int) -> Int -> Int) & (Any -> Bool -> Bool)
+   even more:     (Int -> Int) -> Int -> Int) & (Any -> (True -> False)
+                  & (False -> True))
+ *)
 
-let ho2_explicit = fun ( (Int -> Int) -> (Int | Bool) -> (Int | Bool)) f x -> if x is Int then (f x) + x else lnot x
+let ho2_explicit =
+  fun ( (Int -> Int) -> (Int | Bool) -> (Int | Bool)) f x ->
+    if x is Int then (f x) + x else lnot x
 
-let ho2_moreexpl = fun ( ( (Int -> Int) -> Int -> Int) & (Any -> (True -> False) & (False -> True)) ) f x -> if x is Int then (f x) + x else lnot x
-       
+let ho2_moreexpl =
+  fun ( ( (Int -> Int) -> Int -> Int) & (Any -> (True -> False)
+                                                & (False -> True)) ) f x ->
+    if x is Int then (f x) + x else lnot x
+
 let ho1 = fun f -> fun b ->
-     ((lnot b), (if b is True then succ (f b) else 42))              
+     ((lnot b), (if b is True then succ (f b) else 42))
 
 (* expected  type:
-    (Any -> False -> (True,42))     
+    (Any -> False -> (True,42))
    &((True -> Int) -> True -> (False,Int))
  *)
-        
+
 let ho1_explicit =
-  fun ( (Any -> False -> (True,42)) & ((True -> Int) -> True -> (False,Int)) ) f b ->
-     ((lnot b), (if b is True then succ (f b) else 42))              
+  fun ( (Any -> False -> (True,42)) & ((True -> Int) -> True ->
+                                       (False,Int)) ) f b ->
+     ((lnot b), (if b is True then succ (f b) else 42))
 
 let ho4 = fun f -> fun b ->
-     ((lnot b), (if b is True then f (succ (f b)) else 42))              
+     ((lnot b), (if b is True then f (succ (f b)) else 42))
 
 (* expected  type:
-    (Any -> False -> (True,42))     
+    (Any -> False -> (True,42))
    &( ((True -> Int)&(Int ->'a)) -> True -> (False,'a))
  *)
 
 let ho4_explicit =
-  fun ( (Any -> False -> (True,42)) & ( ((True -> Int)&(Int -> 'a)) -> True -> (False,'a)) ) f b ->
-     ((lnot b), (if b is True then f(succ (f b)) else 42))              
+  fun ( (Any -> False -> (True,42)) & ( ((True -> Int)&(Int -> 'a)) ->
+                                        True -> (False,'a)) ) f b ->
+     ((lnot b), (if b is True then f(succ (f b)) else 42))
 
 let aliasing_ill = fun f x ->
   let z = if bool then x else x in
   if f z is Int then f z else x
 
-let aliasing_explicit = fun ((('a -> ~Int) -> 'a -> 'a) & (('a -> Int&'b) -> 'a -> Int&'b) & (('a -> 'b) -> 'a -> 'a|'b)) f x ->
-  let z = if bool then x else x in
-  if f z is Int then f z else x
+let aliasing_explicit =
+  fun ((('a -> ~Int) -> 'a -> 'a) & (('a -> Int&'b) -> 'a -> Int&'b)
+       & (('a -> 'b) -> 'a -> 'a|'b)) f x ->
+    let z = if bool then x else x in
+    if f z is Int then f z else x
 
 (*****************************************
 *                                        *
 *     Tests for lazy implementation      *
 * ( examples that should work with a  )  *
-* (lazy typing of the bind expressions)  * 
+* (lazy typing of the bind expressions)  *
 *                                        *
 ******************************************)
-  
-let foo_highord1_wrong = fun f -> f 3                                
 
-let foo_highord2_wrong = fun f -> (f 3 , f true)                           
-                           
-let foo_highord3_wrong = fun f -> f (f 3)                           
+let foo_highord1_wrong = fun f -> f 3
 
-let foo_highord4_wrong = fun f -> (f f) 3                           
+let foo_highord2_wrong = fun f -> (f 3 , f true)
 
-let foo_highord5_wrong = fun f -> (f (f 3) , f true)                           
+let foo_highord3_wrong = fun f -> f (f 3)
 
-let foo_highord6_wrong = fun f -> (f (f 3) , f f true)                           
+let foo_highord4_wrong = fun f -> (f f) 3
+
+let foo_highord5_wrong = fun f -> (f (f 3) , f true)
+
+let foo_highord6_wrong = fun f -> (f (f 3) , f f true)
 
 (* Does the following function type with the lazy approach? *)
 (* to type it in the "popl22" system it suffices to add     *)
-(* the annotation y : Int and then it works                 *)                                
- 
+(* the annotation y : Int and then it works                 *)
+
 let how_to_type_that_harder1 =
   let snd_ = fun x -> (fun y -> y) in
-  (snd_ true ( snd_ 42 3) ) + (snd_ "ok"  3)                                   
+  (snd_ true ( snd_ 42 3) ) + (snd_ "ok"  3)
 
 let how_to_type_that_harder2 =
   let snd_ = fun x -> (fun y -> y) in
-  (snd_ "ok"  3) + (snd_ true ( snd_ 42 3) )                                   
+  (snd_ "ok"  3) + (snd_ true ( snd_ 42 3) )
 
-  
+
 (* trying some form of aliasing: what this function
    test is whether its argument is of type Int     *)
-  
+
 let not_so_bad = fun x ->
-  if (if x is 42 then x else x) is Int then x + 1 else 3                               
+  if (if x is 42 then x else x) is Int then x + 1 else 3
 
 
  (* this function works with the old system but not with the new one *)
 
- let really_bad = fun x -> if x is Int then x + 1 else (42 3) 
+let really_bad = fun x -> if x is Int then x + 1 else (42 3)
 
 let bad_again = fun x -> fun y ->
   if y is Int then y+1 else x+1

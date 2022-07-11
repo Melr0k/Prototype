@@ -33,7 +33,7 @@ module Variable = struct
     match get_name t with
     | None -> Format.fprintf fmt "%d" t
     | Some str -> Format.fprintf fmt "%s" str
-    
+
   let show t =
     match get_name t with
     | None -> string_of_int t
