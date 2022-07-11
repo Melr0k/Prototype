@@ -39,8 +39,8 @@ val empty_vtenv : var_type_env
 
 val type_base_to_typ : type_base -> typ
 
-val type_expr_to_typ :
-  type_env -> var_type_env -> type_expr -> typ * var_type_env
+val type_expr_to_typ : type_env -> var_type_env -> type_expr ->
+                       typ * var_type_env
 
 val define_atom : type_env -> string -> type_env
 
@@ -57,6 +57,8 @@ val has_atom : type_env -> string -> bool
 
 val conj : typ list -> typ
 val disj : typ list -> typ
+val conj_o : typ list -> typ
+val disj_o : typ list -> typ
 
 val remove_negative_arrows : typ -> typ
 
@@ -64,6 +66,9 @@ val simplify_dnf : (typ * typ) list list -> (typ * typ) list list
 val simplify_typ : typ -> typ
 
 val branch_type : (typ*typ) list -> typ
+val decompose_branches : (typ*typ) list ->
+                         ((typ*typ) list) (* Jokerized branches *)
+                         * ((typ*typ) list)
 
 val is_test_type : typ -> bool
 
@@ -76,16 +81,33 @@ val triangle_exact : typ -> typ -> typ
 
 (* Record manipulation *)
 
-(** [record_any_with l] creates the record type {l = Any ..} *)
 val record_any_with : string -> typ
+(** [record_any_with l] creates the record type {l = Any ..} *)
 
-(** [record_any_without l] creates the record type {l =? Empty ..} *)
 val record_any_without : string -> typ
+(** [record_any_without l] creates the record type {l =? Empty ..} *)
 
+val split_record : typ -> typ list
 (** [split_record t] splits a union of record types
     into a list of individual record types *)
-val split_record : typ -> typ list
 
+val remove_field_info : typ -> string -> typ
 (** [remove_field_info t label] removes all the information
     about the field label in the record t. *)
-val remove_field_info : typ -> string -> typ
+
+(* Operations on vars *)
+
+type joker_kind = Min | Max
+val reserved_name_for_joker : joker_kind -> string
+
+val joker : joker_kind -> typ
+val jokers : joker_kind -> typ -> var list
+val top_jokers : joker_kind -> typ -> var list
+
+val substitute_jokers : joker_kind -> typ -> typ -> typ
+val substitute_all_jokers : typ -> typ -> typ
+val optimal : typ -> typ
+val worst : typ -> typ
+val substitute_top_jokers : joker_kind -> typ -> typ -> typ
+
+val share_jokerized_arrows : typ list -> typ list

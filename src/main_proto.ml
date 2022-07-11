@@ -21,8 +21,6 @@ let print_ill_typed (pos, str) =
 let print_result str =
   Format.fprintf !std_fmt "%s@?" str
 
-(* TODO: Improve lazy system so that it works with: *)
-(* let bad = fun x -> if x is Int then x else (42 3) *)
 let type_check_program
       (program:Ast.parser_program) (pr:string -> unit) pr_logs pr_ill_typed =
   let test_def (tenv,varm,env) (name,parsed_expr) =
@@ -35,10 +33,13 @@ let type_check_program
       let nf_expr = convert_to_msc ~legacy:true annot_expr in
       let time1 = Unix.gettimeofday () in
       assert (VarSet.subset (fv_e nf_expr) (Env.domain env |> VarSet.of_list)) ;
+      let tmp_log = !Utils.log_enabled in
+      Utils.log_enabled := false ;
       let typ_legacy =
         try Some (Old_checker.typeof_simple_legacy tenv env nf_expr)
         with Old_checker.Ill_typed _ -> None
       in
+      Utils.log_enabled := tmp_log ;
       try
         (*Format.printf "%a@." pp_e nf_expr ;*)
         let typ = Checker.typeof_simple tenv env nf_expr in
@@ -55,10 +56,12 @@ let type_check_program
         | None -> Format.ksprintf pr
                     "===== Good news: Was untypable with POPL22 system =====\n"
         | Some t ->
-           if Cduce.subtype typ t |> not
-           then
-             Format.ksprintf pr "===== Warning: Not better than the type obtained by POPL22 system =====\nType was: %s\n"
-               (Cduce.string_of_type t)
+          if Cduce.subtype typ t |> not
+          then (
+            Format.ksprintf pr "===== Warning: Not better than the type obtained by POPL22 system =====\nType was: %s\n"
+            (Cduce.string_of_type t)
+            (*; Format.printf "%a@." pp_e nf_expr*)
+          )
         end ;
         pr_logs () ; (varm, env)
       with Checker.Ill_typed (pos, str) ->

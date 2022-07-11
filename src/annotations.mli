@@ -1,29 +1,74 @@
 
+val regroup : ('a -> 'a -> bool) -> ('a * 'b) list -> ('a * ('b list)) list
+val remove_redundance : Cduce.typ list -> Cduce.typ list
 val partition : Cduce.typ list -> Cduce.typ list
 
-type 'a annot_a' =
-    | No_annot_a
-    | Annot_a of 'a
-
-type 'a annot' =
-    | No_annot
-    | Annot of ('a annot_a' * 'a)
-
-module SplitAnnot : sig
+module type Annot = sig
+    type a
+    type e
+    val equals_a : a -> a -> bool
+    val equals_e : e -> e -> bool
+    val merge_a : a -> a -> a
+    val merge_e : e -> e -> e
+    val initial_a : Msc.a -> a
+    val initial_e : Msc.e -> e
+    val pp_a : Format.formatter -> a -> unit
+    val pp_e : Format.formatter -> e -> unit
+    val show_a : a -> string
+    val show_e : e -> string
+end
+module type LambdaSA = sig
+    type annot
     type t
-    val create : (Cduce.typ * (t annot')) list -> t
+    val empty : unit -> t
+    val destruct : t -> (Cduce.typ * (annot * Cduce.typ * bool)) list
+    val add : t -> Cduce.typ * (annot * Cduce.typ * bool) -> t
+    val merge : t -> t -> t
+    val construct : (Cduce.typ * (annot * Cduce.typ * bool)) list -> t
+    val construct_with_custom_eq : string -> (Cduce.typ * (annot * Cduce.typ * bool)) list -> t
+    val map_top : (Cduce.typ -> Cduce.typ -> bool -> Cduce.typ * Cduce.typ * bool) -> t -> t
+    val enrich : opt_branches_maxdom:Cduce.typ -> former_typ:Cduce.typ -> annot
+                 -> t -> (Cduce.typ * Cduce.typ) list -> t
     val splits : t -> Cduce.typ list
-    val dom : t -> Cduce.typ
-    val apply : t -> Cduce.typ -> t annot'
-    val destruct : t -> (Cduce.typ * (t annot')) list
+    val apply : t -> Cduce.typ -> Cduce.typ -> bool -> annot
+    val normalize : t -> t
+    val equals : t -> t -> bool
+    val pp : Format.formatter -> t -> unit
+end
+module type BindSA = sig
+    type annot
+    type t
+    val empty : unit -> t
+    val destruct : t -> (Cduce.typ * annot) list
+    val add : t -> Cduce.typ * annot -> t
+    val merge : t -> t -> t
+    val construct : (Cduce.typ * annot) list -> t
+    val construct_with_custom_eq : string -> (Cduce.typ * annot) list -> t
+    val map_top : (Cduce.typ -> Cduce.typ) -> t -> t
+    val splits : t -> Cduce.typ list
+    val apply : t -> Cduce.typ -> annot
+    val normalize : t -> Cduce.typ -> t
+    val equals : t -> t -> bool
+    val pp : Format.formatter -> t -> unit
 end
 
-type annot_a = SplitAnnot.t annot_a'
-type annot = SplitAnnot.t annot'
+module LambdaSAMake: functor(A: Annot) -> LambdaSA with type annot=A.e
+module BindSAMake: functor(A: Annot) -> BindSA with type annot=A.e
 
-val merge_annots_a : annot_a -> annot_a -> annot_a
+type 'lsa anns_a =
+| EmptyAtomA
+| UntypAtomA
+| AppA of Cduce.typ * bool
+| LambdaA of (Cduce.typ (* Last type of the lambda *) * 'lsa)
+type ('lsa, 'bsa) anns_e =
+| EmptyA
+| BindA of ('lsa anns_a * 'bsa)
 
-val pp_annot_a : Format.formatter -> annot_a -> unit
-val pp_annot : Format.formatter -> annot -> unit
-val show_annot_a : annot_a -> string
-val show_annot : annot -> string
+module type AnnotMono = sig
+    include Annot
+    val annotate_def_with_last_type : Cduce.typ -> a -> a
+end
+
+module rec BindSA : (BindSA with type annot=AnnotMono.e)
+and LambdaSA : (LambdaSA with type annot=AnnotMono.e)
+and AnnotMono : (AnnotMono with type a=LambdaSA.t anns_a and type e=(LambdaSA.t, BindSA.t) anns_e)

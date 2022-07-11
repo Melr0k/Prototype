@@ -84,7 +84,7 @@ let derecurse_types env venv defs =
     | TVar v ->
        begin try Typepat.mk_type (Hashtbl.find venv v)
              with Not_found ->
-               let t = mk_var v in
+               let t = mk_var v |> var_typ in
                Hashtbl.add venv v t ;
                Typepat.mk_type t end
     | TBase tb -> Typepat.mk_type (type_base_to_typ tb)
@@ -127,8 +127,8 @@ let derecurse_types env venv defs =
   let nodes = List.map (fun (name, def) -> name, aux def) defs in
   let res =
     List.map
-      (fun (name, node) -> (name, (Typepat.internalize node; Typepat.typ node)))
-      nodes
+      (fun (name, node) -> (name,
+                            (Typepat.internalize node; Typepat.typ node))) nodes
   in
   let venv = Hashtbl.fold StrMap.add venv StrMap.empty in
   (res, venv)
@@ -176,8 +176,10 @@ let has_atom (_, atoms) name =
 
 (* Operations on types *)
 
-let conj ts = List.fold_left cap_o any ts
-let disj ts = List.fold_left cup_o empty ts
+let conj ts = List.fold_left cap any ts
+let disj ts = List.fold_left cup empty ts
+let conj_o ts = List.fold_left cap_o any ts
+let disj_o ts = List.fold_left cup_o empty ts
 
 let branch_type lst =
   if lst = [] then arrow_any
@@ -195,13 +197,31 @@ let full_branch_type ((pvs, nvs), (ps, ns)) =
   let ns = ns |>
              List.map (fun (a, b) -> mk_arrow a b |> neg) |> conj in
   let t = [pvs;nvs;ps;ns] |> conj in
-  cap_o arrow_any t
+  cap arrow_any t
 
 let rec take_one lst =
   match lst with
   | [] -> []
   | e::lst ->
      (e, lst)::(List.map (fun (e',lst) -> (e',e::lst)) (take_one lst))
+
+let rec regroup_conjuncts conjuncts =
+  let rec aux (l,r) lst = match lst with
+    | [] -> ((l,r), [])
+    | (l',r')::lst ->
+       if equiv l l'
+       then aux (l, cap r r') lst
+       else if equiv r r'
+       then aux (cup l l', r) lst
+       else
+         let ((l,r),lst) = aux (l,r) lst in
+         ((l,r), (l',r')::lst)
+  in
+  match conjuncts with
+  | [] -> []
+  | (l, r)::lst ->
+     let ((l,r),lst) = aux (l,r) lst in
+     (l,r)::(regroup_conjuncts lst)
 
 let simplify_dnf dnf =
   let splits = List.map branch_type dnf in
@@ -213,102 +233,95 @@ let simplify_dnf dnf =
        let (_, ts2) = List.split kept in
        if f t (ts1@ts2) then rm f kept lst else rm f ((dnf, t)::kept) lst
   in
-  let rec regroup conjuncts =
-    let rec aux (l,r) lst = match lst with
-      | [] -> ((l,r), [])
-      | (l',r')::lst ->
-         if equiv l l'
-         then aux (l, cap_o r r') lst
-         else if equiv r r'
-         then aux (cup_o l l', r) lst
-         else
-           let ((l,r),lst) = aux (l,r) lst in
-           ((l,r), (l',r')::lst)
-    in
-    match conjuncts with
-    | [] -> []
-    | (l, r)::lst ->
-       let ((l,r),lst) = aux (l,r) lst in
-       (l,r)::(regroup lst)
-  in
   let simplify_conjuncts (conjuncts, _) =
     let conjuncts =
       conjuncts
       |> List.map (fun (a, b) -> ((a,b), mk_arrow (cons a) (cons b)))
-      |> rm (fun t ts -> subtype (conj ts) t) []
-            (* Remove redundant conjuncts *)
+      |> rm (fun t ts -> subtype (conj ts) t) [] (* Remove redundant
+                                                    conjuncts *)
     in
-    conjuncts
-    |> List.split |> fst
-    |> regroup (* Regroup conjuncts with similar domain/codomain *)
+    (* Regroup conjuncts with similar domain/codomain *)
+    conjuncts |> List.split |> fst |> regroup_conjuncts
   in
   rm (fun t ts -> subtype t (disj ts)) [] splits
   |> List.map simplify_conjuncts
+
+let remove_useless_conjuncts ~n dc cc lst =
+  let arrow_type (a,b) =
+    if n then mk_arrow a b |> neg else mk_arrow a b
+  in
+  let rec aux (kept, kt) rem =
+    match rem with
+    | [] -> (kept, kt)
+    | c::rem ->
+       let ct = arrow_type c in
+       let rt = rem |> List.map arrow_type |> conj in
+       let krt = cap kt rt in
+       let t' = cup dc krt in
+       let t  = cup dc (cap krt ct) in
+       if subtype t' t then aux (kept, kt) rem
+       else aux (c::kept, cap kt ct) rem
+  in
+  aux ([], cc) lst |> fst
+
+let remove_useless_conjuncts dc ((pvs, nvs), (ps, ns)) =
+  let context = full_branch_type ((pvs, nvs), ([], ns)) in
+  let ps = remove_useless_conjuncts ~n:false dc context ps in
+  let context = full_branch_type ((pvs, nvs), (ps, [])) in
+  let ns = remove_useless_conjuncts ~n:true dc context ns in
+  ((pvs, nvs), (ps, ns))
+
+let regroup_conjuncts ((pvs, nvs), (ps, ns)) =
+  let ps = ps |>
+             List.map (fun (a,b) -> (descr a, descr b)) |>
+             regroup_conjuncts |>
+             List.map (fun (a,b) -> (cons a, cons b)) in
+  ((pvs, nvs), (ps, ns))
 
 let simplify_full_dnf dnf =
-  let splits = List.map full_branch_type dnf in
-  let splits = List.combine dnf splits in
-  let rec rm f kept lst = match lst with
-    | [] -> kept
-    | (dnf, t)::lst ->
-       let (_, ts1) = List.split lst in
-       let (_, ts2) = List.split kept in
-       if f t (ts1@ts2) then rm f kept lst else rm f ((dnf, t)::kept) lst
+  (* Remove useless conjuncts *)
+  let rec aux (kept, kt) rem =
+    match rem with
+    | [] -> (kept, kt)
+    | c::rem ->
+       let rt = rem |> List.map full_branch_type |> disj in
+       let krt = cup kt rt in
+       let c = remove_useless_conjuncts krt c in
+       let ct = full_branch_type c in
+       aux (c::kept, cup kt ct) rem
   in
-  let rec regroup conjuncts =
-    let rec aux (l,r) lst = match lst with
-      | [] -> ((l,r), [])
-      | (l',r')::lst ->
-         if equiv (descr l) (descr l')
-         then aux (l, cap_o (descr r) (descr r') |> cons) lst
-         else if equiv (descr r) (descr r')
-         then aux (cup_o (descr l) (descr l') |> cons, r) lst
-         else
-           let ((l,r),lst) = aux (l,r) lst in
-           ((l,r), (l',r')::lst)
-    in
-    match conjuncts with
-    | [] -> []
-    | (l, r)::lst ->
-       let ((l,r),lst) = aux (l,r) lst in
-       (l,r)::(regroup lst)
+  let dnf = aux ([], empty) dnf |> fst in
+  (* Remove useless disjuncts *)
+  let rec aux (kept, kt) rem =
+    match rem with
+    | [] -> (kept, kt)
+    | c::rem ->
+       let ct = full_branch_type c in
+       let rt = rem |> List.map full_branch_type |> disj in
+       let krt = cup kt rt in
+       let t  = cup krt ct in
+       if subtype t krt then aux (kept, kt) rem
+       else aux (c::kept, cup kt ct) rem
   in
-  let simplify_conjuncts (((pvs, nvs), (ps, ns)), _) =
-    let ps =
-      ps
-      |>List.map (fun (a, b) -> ((a,b), mk_arrow a b))
-      |> rm (fun t ts -> subtype (conj ts) t) []
-      (* Remove redundant positive conjuncts *)
-      |> List.split |> fst
-      |> regroup (* Regroup positive conjuncts with similar domain/codomain *)
-    in
-    let ns =
-      ns
-      |> List.map (fun (a, b) -> ((a,b), mk_arrow a b |> neg))
-      |> rm (fun t ts -> subtype (conj ts) t) []
-      (* Remove redundant negative conjuncts *)
-      |> List.split |> fst
-    in
-    ((pvs, nvs), (ps, ns))
-  in
-  rm (fun t ts -> subtype t (disj ts)) [] splits
-  |> List.map simplify_conjuncts
+  let dnf = aux ([], empty) dnf |> fst in
+  (* Regroup positive conjuncts with similar domain/codomain  *)
+  List.map regroup_conjuncts dnf
 
 let simplify_typ t =
-  let arrow = t |> full_dnf |> simplify_full_dnf
-              |> List.map full_branch_type |> disj in
+  let arrow = t |> full_dnf |> simplify_full_dnf |> List.map full_branch_type
+              |> disj in
   let non_arrow = diff t arrow_any in
-  let res = cup_o arrow non_arrow (*|> normalize_typ*) in
+  let res = cup arrow non_arrow (*|> normalize_typ*) in
   assert (equiv res t) ; res
 
 let remove_negative_arrows t =
   let pos_arrow = t |> dnf |> List.map branch_type |> disj in
   let non_arrow = diff t arrow_any in
-  cup_o pos_arrow non_arrow
+  cup pos_arrow non_arrow
 
 let is_test_type t =
   let is_non_trivial_arrow t =
-    let arrow_part = cap_o t arrow_any in
+    let arrow_part = cap t arrow_any in
     (is_empty arrow_part || subtype arrow_any arrow_part) |> not
   in
   let memo = Hashtbl.create 10 in
@@ -331,13 +344,14 @@ let square_approx f out =
     dnf f
     |> List.map begin
            fun lst ->
-           let is_impossible (_,t) = is_empty (cap_o out t) in
+           let is_impossible (_,t) = is_empty (cap out t) in
            let impossibles = List.filter is_impossible lst |> List.map fst in
            neg (disj impossibles)
          end in
-  cap_o (domain f) (disj res)
+  cap (domain f) (disj res)
 
 let square_exact f out =
+  assert (is_empty out |> not) ;
   let res =
     dnf f
     |> List.map begin
@@ -354,49 +368,51 @@ let square_exact f out =
                  List.flatten (List.map aux (take_one lst))
                end
            in
-           conj (List.map neg
-                   (impossible_inputs [] (remove_included_branchs lst)))
+           conj (List.map neg (impossible_inputs []
+                                 (remove_included_branchs lst)))
          end in
-  cap_o (domain f) (disj res)
+  cap (domain f) (disj res)
 
 let square_split f out =
-  dnf f
-  |> List.map begin
-         fun lst ->
-         let t = branch_type lst in
-         let res = square_exact t out in
-         (t, res)
-       end
+  dnf f |>
+    List.map begin
+        fun lst ->
+        let t = branch_type lst in
+        let res = square_exact t out in
+        (t, res)
+      end
 
+(* TODO: Optimize... *)
 let triangle_exact f out =
   let res =
     dnf f
     |> List.map begin
            fun lst ->
-           let remove_disjoint_branchs lst =
-             let is_not_disjoint (_, o) = disjoint o out |> not in
-             List.filter is_not_disjoint lst
-           in
+           (*let remove_disjoint_branchs lst =
+               let is_not_disjoint (_, o) = disjoint o out |> not in
+               List.filter is_not_disjoint lst
+             in*)
            let rec possible_inputs current_set lst =
              let t = List.map snd current_set in
-             if subtype (conj t) out then [conj (List.map fst current_set)]
+             if t <> [] && subtype (conj t) out
+             then [conj (List.map fst current_set)]
              else begin
                  let aux (e,lst) = possible_inputs (e::current_set) lst in
                  List.flatten (List.map aux (take_one lst))
                end
            in
-           disj (possible_inputs [] (remove_disjoint_branchs lst))
+           disj (possible_inputs [] ((*remove_disjoint_branchs*)lst))
          end in
   conj res
 
 let triangle_split f out =
-  dnf f
-  |> List.map begin
-         fun lst ->
-         let t = branch_type lst in
-         let res = triangle_exact t out in
-         (t, res)
-       end
+  dnf f |>
+    List.map begin
+        fun lst ->
+        let t = branch_type lst in
+        let res = triangle_exact t out in
+        (t, res)
+      end
 
 (* Record manipulation *)
 let record_any_with l = mk_record true [l, any_node]
@@ -420,3 +436,83 @@ let remove_field_info t label =
   let t = remove_field t label in
   let singleton = mk_record false [label, any_or_absent_node] in
   merge_records t singleton
+
+(* Operations on vars *)
+
+type joker_kind = Min | Max
+let reserved_name_for_joker t =
+  match t with
+  | Min -> "-"
+  | Max -> "+"
+
+let joker k = mk_var (reserved_name_for_joker k) |> var_typ
+let jokers k t =
+  vars t |> List.filter (fun v -> String.equal (var_name v)
+                                    (reserved_name_for_joker k))
+let top_jokers k t =
+  top_vars t |> List.filter (fun v -> String.equal (var_name v)
+                                        (reserved_name_for_joker k))
+
+let substitute_jokers k t t_subs =
+  let subst = jokers k t |> List.map (fun j -> (j,t_subs)) |> mk_subst in
+  substitute subst t
+
+let substitute_all_jokers t t_subs =
+  let t = substitute_jokers Min t t_subs in
+  substitute_jokers Max t t_subs
+
+let optimal t =
+  let t = substitute_jokers Min t empty in
+  substitute_jokers Max t any
+
+let worst t =
+  let t = substitute_jokers Max t empty in
+  substitute_jokers Min t any
+
+let substitute_top_jokers k t t_subs =
+  let subst = top_jokers k t |> List.map (fun j -> (j,t_subs)) |> mk_subst in
+  substitute subst t
+
+let required_part_of_branch (a,b) =
+  if is_empty a then Some (a, b)
+  else
+    let js = top_jokers Max a in
+    let subst = js |> List.map (fun j -> (j, empty)) |> mk_subst in
+    let a = substitute subst a in
+    if is_empty a then None else Some (a,b)
+
+let decompose_branch (a,b) =
+  match required_part_of_branch (a,b) with
+  | None -> (Some (a,b), None)
+  | Some (a',_) ->
+     let a = diff a a' in
+     let res = if is_empty a then None else Some (a,b) in
+     (res, Some (a', b))
+
+let decompose_branches lst =
+  let rec aux lst =
+    match lst with
+    | [] -> ([], [])
+    | b::lst -> begin
+        let (js, njs) = aux lst in
+        match decompose_branch b with
+        | None, None -> (js, njs)
+        | None, Some b -> (js, b::njs)
+        | Some b, None -> (b::js, njs)
+        | Some b1, Some b2 -> (b1::js, b2::njs)
+      end
+  in
+  aux lst
+
+let extract_jokerized_arrows t =
+  dnf t |> List.map decompose_branches |> List.map fst
+  |> List.concat
+
+let add_joker_branch t joker =
+  let non_arrow = diff t arrow_any in
+  cup non_arrow (cap_o t (branch_type joker))
+
+let share_jokerized_arrows lst =
+  let jokers = lst |> List.map extract_jokerized_arrows in
+  lst |> List.map
+           (fun t -> List.fold_left add_joker_branch t jokers)

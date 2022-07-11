@@ -291,11 +291,9 @@ let is_empty_node_perfect_annotations  = fun (InferredType) x ->
 type IntList = Nil | (Int,IntList)
  and AnyList = Nil | (Any, AnyList)
  and IntTree = (Any \IntList) | Nil | (IntList,IntTree)
-
 let concat = fun (x : AnyList) ->
               fun (y : AnyList) ->
                   if x is Nil then y else (fst x , (concat (snd x) y))
-
 let flatten = fun x ->
   if x is Nil then true
   else if x is (Any,Any) then concat (flatten(fst x)) (flatten(snd x))
@@ -373,7 +371,6 @@ let f v =
   if v is E then v else nil
 
 (*
-
 let f (g : ((<e>[] -> <a>[]) & ((S1\<e>[]) -> <b>[]))) (v : S1) :
       (S1 \ (<c>[<a>[] <b>[]])) =
   match v with
@@ -664,7 +661,6 @@ let and_ = fun x -> fun y ->
   if x is True then if y is True
   then true else false
   else false
-
 let is_int = fun x ->
   if x is Int then true else false
  *)
@@ -744,10 +740,8 @@ fun n ->
   else (a n)
 
 (* Très intéressant ... il trouve ce type surchargé
-
   ((Int -> Bool | Int) -> Int -> Bool)
 & ((Int,Bool | Int) -> Any -> Bool)
-
   c-a-d ca marche avec Any seulement si c'est un produit
 *)
 
@@ -948,7 +942,6 @@ let f = <(Any\Int -> (Any, Any)\(Int,Int) ) & ( Int -> (Int,Int) )>
 
 (*
 let dummy = <Any\Int>
-
 let f = fun x ->
      if x is Int then (x,x)
      else (dummy,x)
@@ -974,9 +967,7 @@ let two_steps_not2 =
 
 
 (*************************************
-
         TypeScript 4.4b examples
-
  *************************************)
 
 let toUpperCase = <String -> String>
@@ -1109,7 +1100,6 @@ let balance ( Unbalanced -> Rtree ; Rtree -> Rtree ; Btree\[] -> Btree\[] ;
   | <black (x)>[ a <red (y)>[ b <red (z)>[ c d ] ] ] ->
         <red (y)>[ <black (x)>[ a b ] <black (z)>[ c d ] ]
   | x -> x
-
 let insert (x : Int) (t : Btree) : Btree =
 let ins_aux ( [] -> Rtree ; Btree\[] -> RBtree\[]; Rtree -> Rtree|Wrongtree)
   | [] -> <red elem=x>[ [] [] ]
@@ -1220,17 +1210,53 @@ let ho0_moreexpl =
 
 let ho_fetish_ill = fun f -> fun g -> fun x -> if g x is Int then f (g x) else 0
 
+(* obtained monomorphic type:
+
+   (Any \ (Int -> Any) -> ((Any -> Any \ Int) & (Any -> Any)) -> Any -> 0) &
+   ((Int -> Any) -> (Any -> Any) -> Any -> Any)
+
+not very precise. I would like
+
+   ( Any \ (Int -> Any) -> ( Any -> Any \ Int) -> Any -> 0) &
+   ((Int -> True) -> (Any -> Int) -> Any -> True) &
+   ((Int -> False) -> (Any -> Any) -> Any -> False | 0)
+
+ *)
+let ho_fetish_explicit =
+  fun (   ( Any  -> ( Any -> Any \ Int) -> Any -> 0)
+          & ((Int -> True) -> (Any -> Int) -> Any -> True)
+          & ((Int -> True) -> (Any -> Any) -> Any -> (True | 0))
+                             ) f g x -> if g x is Int then f (g x) else 0
+
 (*  expected type:
     ( ('a & Int -> 'b ) -> ( 'c -> 'a & Int) -> 'c -> 'b )
    &( Any -> ('c -> 'a \ Int) -> 'c -> 0 )
    &( ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b | 0 )
 *)
 
-let ho_fetish_explicit =
+let ho_fetish_explicit_poly =
   fun   ( ( ('a & Int -> 'b ) -> ( 'c -> 'a & Int) -> 'c -> 'b )
           &( Any -> ('c -> 'a \ Int) -> 'c -> 0 )
           &( ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b | 0 )
         ) f g x -> if g x is Int then f (g x) else 0
+
+let ho_fetish_expl_uncurry =
+  fun   ( ( (('a & Int -> 'b ), ( 'c -> 'a & Int)) -> 'c -> 'b )
+          &( (Any , ('c -> 'a \ Int)) -> 'c -> 0 )
+          &( (('a -> 'b), ('c -> 'a)) -> 'c -> 'b | 0 )
+        ) f x -> if (snd f) x is Int then (fst f) ((snd f) x) else 0
+
+let ho_fetish_explicit_mono =
+  fun  (  ( (Int -> B ) -> ( C -> Int) -> C -> B )
+          & ( Any -> (C -> Any \ Int) -> C -> 0 )
+          & ( (Any -> B) -> (C -> Any) -> C -> B | 0 )
+       ) f g x -> if g x is Int then f (g x) else 0
+
+let ho_fetish_explicit_mono_uncurry =
+  fun  (  (( (Int -> B ) , ( C -> Int)) -> C -> B )
+          &  (( Any , (C -> Any \ Int)) -> C -> 0 )
+          &  (((Any -> B), (C -> Any)) -> C -> B | 0 )
+       ) f x -> if (snd f) x is Int then (fst f) ((snd f) x) else 0
 
 let ho2 = fun f -> fun x -> if x is Int then (f x) + x else lnot x
 
@@ -1279,11 +1305,11 @@ let aliasing_ill = fun f x ->
   let z = if bool then x else x in
   if f z is Int then f z else x
 
-let aliasing_explicit =
-  fun ((('a -> ~Int) -> 'a -> 'a) & (('a -> Int&'b) -> 'a -> Int&'b)
-       & (('a -> 'b) -> 'a -> 'a|'b)) f x ->
-    let z = if bool then x else x in
-    if f z is Int then f z else x
+(* let aliasing_explicit =
+     fun ((('a -> ~Int) -> 'a -> 'a) & (('a -> Int&'b) -> 'a -> Int&'b) &
+          (('a -> 'b) -> 'a -> 'a|'b)) f x ->
+  let z = if bool then x else x in
+  if f z is Int then f z else x*)
 
 (*****************************************
 *                                        *
@@ -1299,11 +1325,12 @@ let foo_highord2_wrong = fun f -> (f 3 , f true)
 
 let foo_highord3_wrong = fun f -> f (f 3)
 
-let foo_highord4_wrong = fun f -> (f f) 3
-
-let foo_highord5_wrong = fun f -> (f (f 3) , f true)
-
 let foo_highord6_wrong = fun f -> (f (f 3) , f f true)
+
+
+(* simple examples of higher order functions *)
+
+let simple_ho =  fun f x y b -> if b is ~True then f x else f y
 
 (* Does the following function type with the lazy approach? *)
 (* to type it in the "popl22" system it suffices to add     *)
@@ -1325,9 +1352,44 @@ let not_so_bad = fun x ->
   if (if x is 42 then x else x) is Int then x + 1 else 3
 
 
- (* this function works with the old system but not with the new one *)
+(* this function works with the old system but not with the new one *)
 
 let really_bad = fun x -> if x is Int then x + 1 else (42 3)
 
 let bad_again = fun x -> fun y ->
   if y is Int then y+1 else x+1
+
+
+(*****************************************
+*                                        *
+*     Examples needing substitutions     *
+*                                        *
+******************************************)
+
+let ignore_first_arg_1 x =
+  succ ((fun y -> fun z -> z) 42 x)
+
+let ignore_first_arg_2 x =
+  succ ((fun y -> fun z -> z) x 42)
+
+let ignore_first_arg_3 x =
+  succ ((fun y -> fun z -> z) (x 42) 42)
+
+let twisted_1 y z = succ(snd(fst ((fun x -> z x) (z y))))
+
+let twisted_2 y z = succ(snd(fst ((fun x -> z x) z y)))
+
+let twisted_3 y z = succ(fst(snd(fst ((fun x -> fst (z x)) z y))))
+
+
+
+let foo y = fst ((fun x ->  x) y)
+
+let foo_eta1 y = (fun z -> (fst z)) ((fun x ->  x) y)
+
+let foo_eta2 y = (fun z -> (fst ((fun w -> z) y)) ) ((fun x ->  x) y)
+
+let foo y = fst ((fun x -> ((fun y -> x)(42))) y)
+let foo y = fst ((fun x -> ((fun y -> x)(x))) y)
+let foo_fail y = fst ((fun x -> ((fun y -> x)(succ x))) y)
+let foo_fail ( y : (Any,Any)) = fst ((fun x -> ((fun y -> x)(x+42))) y)

@@ -36,7 +36,9 @@ let refine_existing v t (b,r) =
 let refine v t (b,r) =
   if mem v (b,r) then
     let ot = find v (b,r) in
-    if (Cduce.is_empty ot |> not) && Cduce.disjoint t ot then None
+    if (Cduce.subtype Cduce.any_or_absent ot |> not) &&
+       (Cduce.is_empty ot |> not) && Cduce.disjoint t ot
+    then None
     else Some (strengthen v t (b,r))
   else
     (*Some (strengthen v t (b, r))*)
@@ -49,6 +51,11 @@ let to_env (b,r) =
       let t = Env.find x r in
       Env.add x t b
     ) b (Env.domain r)
+
+let leq_ref (_,r1) (_,r2) = Env.leq r1 r2
+let equiv_ref env1 env2 = leq_ref env1 env2 && leq_ref env2 env1
+let leq e1 e2 = Env.leq (to_env e1) (to_env e2)
+let equiv env1 env2 = leq env1 env2 && leq env2 env1
 
 let show (_,r) = Env.show r
 let pp fmt (_,r) = Env.pp fmt r

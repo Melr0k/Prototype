@@ -3,6 +3,8 @@ module CD = Cduce_types
 
 type typ = CD.Types.t
 type node = CD.Types.Node.t
+type var = CD.Var.t
+type subst = CD.Types.Subst.t
 
 val pp_typ : Format.formatter -> typ -> unit
 val show_typ : typ -> string
@@ -31,20 +33,20 @@ val list_typ : typ
 val interval : int option -> int option -> typ
 val single_char : char -> typ
 val single_string : string -> typ
+val var_typ : var -> typ
 
+val neg : typ -> typ
 val cup : typ -> typ -> typ
 val cap : typ -> typ -> typ
+val diff : typ -> typ -> typ
 val cup_o : typ -> typ -> typ
 val cap_o : typ -> typ -> typ
+val diff_o : typ -> typ -> typ
 
-val diff : typ -> typ -> typ
-val neg : typ -> typ
-
-val mk_var : string -> typ
 val mk_atom : string -> typ
 val mk_new_typ: unit -> node
 val define_typ: node -> typ -> unit
-val normalize_typ: typ -> typ
+(*val normalize_typ: typ -> typ*)
 
 val mk_times : node -> node -> typ
 val pair_any : typ
@@ -75,6 +77,14 @@ val domain : typ -> typ
 val apply : typ -> typ -> typ
 val dnf : typ -> (typ * typ) list list
 val full_dnf : typ -> ((typ list * typ list) * ((node * node) list * (node * node) list)) list
+
+val mk_var : string -> var
+val vars : typ -> var list
+val top_vars : typ -> var list
+val var_name : var -> string
+val var_set : var list -> var list
+val substitute : subst -> typ -> typ
+val mk_subst : (var * typ) list -> subst
 
 val is_empty : typ -> bool
 val non_empty: typ -> bool

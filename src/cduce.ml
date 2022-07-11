@@ -5,6 +5,8 @@ module LabelMap = CD.Ident.LabelMap
 
 type typ = CD.Types.t
 type node = CD.Types.Node.t
+type var = CD.Var.t
+type subst = CD.Types.Subst.t
 
 let register s = 
   let module U = Encodings.Utf8 in
@@ -36,6 +38,10 @@ let cup t1 t2 = CD.Types.cup t1 t2
 let cap t1 t2 = CD.Types.cap t1 t2
 let diff = CD.Types.diff
 let neg = CD.Types.neg
+let neg_ext t =
+  if CD.Types.Record.has_absent t
+  then neg t
+  else CD.Types.Record.or_absent (neg t)
 
 (* NOTE: arrow types are not automatically simplified by Cduce,
    thus we avoid useless cap\cup in order to keep simple types *)
@@ -43,6 +49,7 @@ let cup_o t1 t2 = if subtype t1 t2 then t2
 else if subtype t2 t1 then t1 else CD.Types.cup t1 t2
 let cap_o t1 t2 = if subtype t1 t2 then t1
 else if subtype t2 t1 then t2 else CD.Types.cap t1 t2
+let diff_o t1 t2 = cap_o t1 (neg_ext t2)
 
 (* ----- *)
 
@@ -50,10 +57,6 @@ let to_label str = CD.Ident.Label.mk_ascii str
 let from_label lbl = CD.Ident.Label.get_ascii lbl
 
 (* ----- *)
-
-let mk_var name =
-    let var = CD.Var.mk name in
-    CD.Types.var var
 
 let mk_atom ascii_name =
     ascii_name |> CD.AtomSet.V.mk_ascii |> CD.AtomSet.atom |> CD.Types.atom
@@ -115,6 +118,8 @@ let single_string str =
       CD.Types.times (single_char c |> cons) (cons acc)
   ) nil_typ rev_str
 
+let var_typ = CD.Types.var
+
 (*
 let list_of alpha =
     let alpha_list = CD.Types.make () in
@@ -137,7 +142,7 @@ let mk_new_typ = CD.Types.make
 
 let define_typ = CD.Types.define
 
-let normalize_typ = CD.Types.normalize
+(*let normalize_typ = CD.Types.normalize*)
 
 
 let mk_times = CD.Types.times
@@ -214,3 +219,11 @@ let full_dnf t =
     let nvs = List.map (CD.Types.var) nvs in
     ((pvs, nvs), expl)
   )
+
+let mk_var name = CD.Var.mk name
+let vars = CD.Types.Subst.vars
+let top_vars = CD.Types.Subst.top_vars
+let var_name = CD.Var.name
+let var_set = CD.Var.Set.from_list
+let substitute = CD.Types.Subst.apply
+let mk_subst = CD.Types.Subst.from_list
