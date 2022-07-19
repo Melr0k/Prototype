@@ -1,4 +1,3 @@
-
 module CD = Cduce_types
 module LabelSet = CD.Ident.LabelSet
 module LabelMap = CD.Ident.LabelMap
@@ -8,7 +7,7 @@ type node = CD.Types.Node.t
 type var = CD.Var.t
 type subst = CD.Types.Subst.t
 
-let register s = 
+let register s =
   let module U = Encodings.Utf8 in
   CD.Types.Print.register_global "" (Ns.Uri.mk (U.mk ""), U.mk s) ?params:None
 let pp_typ = CD.Types.Print.print_noname
@@ -45,10 +44,14 @@ let neg_ext t =
 
 (* NOTE: arrow types are not automatically simplified by Cduce,
    thus we avoid useless cap\cup in order to keep simple types *)
-let cup_o t1 t2 = if subtype t1 t2 then t2
-else if subtype t2 t1 then t1 else CD.Types.cup t1 t2
-let cap_o t1 t2 = if subtype t1 t2 then t1
-else if subtype t2 t1 then t2 else CD.Types.cap t1 t2
+let cup_o t1 t2 =
+  if subtype t1 t2 then t2
+  else if subtype t2 t1 then t1
+  else CD.Types.cup t1 t2
+let cap_o t1 t2 =
+  if subtype t1 t2 then t1
+  else if subtype t2 t1 then t2
+  else CD.Types.cap t1 t2
 let diff_o t1 t2 = cap_o t1 (neg_ext t2)
 
 (* ----- *)
@@ -59,7 +62,7 @@ let from_label lbl = CD.Ident.Label.get_ascii lbl
 (* ----- *)
 
 let mk_atom ascii_name =
-    ascii_name |> CD.AtomSet.V.mk_ascii |> CD.AtomSet.atom |> CD.Types.atom
+  ascii_name |> CD.AtomSet.V.mk_ascii |> CD.AtomSet.atom |> CD.Types.atom
 let true_typ = CD.Builtin_defs.true_type
 let false_typ = CD.Builtin_defs.false_type
 let bool_typ = cup true_typ false_typ
@@ -84,22 +87,22 @@ let list_typ =
 
 let interval i1 i2 =
   match i1, i2 with
-  | Some i1, Some i2 -> 
-    let i1 = CD.Intervals.V.from_int i1 in
-    let i2 = CD.Intervals.V.from_int i2 in
-    let i = CD.Intervals.bounded i1 i2 in
-    CD.Types.interval i
+  | Some i1, Some i2 ->
+     let i1 = CD.Intervals.V.from_int i1 in
+     let i2 = CD.Intervals.V.from_int i2 in
+     let i = CD.Intervals.bounded i1 i2 in
+     CD.Types.interval i
   | Some i1, None ->
-    let i1 = CD.Intervals.V.from_int i1 in
-    let i = CD.Intervals.right i1 in
-    CD.Types.interval i
+     let i1 = CD.Intervals.V.from_int i1 in
+     let i = CD.Intervals.right i1 in
+     CD.Types.interval i
   | None, Some i2 ->
-    let i2 = CD.Intervals.V.from_int i2 in
-    let i = CD.Intervals.left i2 in
-    CD.Types.interval i
+     let i2 = CD.Intervals.V.from_int i2 in
+     let i = CD.Intervals.left i2 in
+     CD.Types.interval i
   | None, None ->
-    CD.Types.Int.any
-    
+     CD.Types.Int.any
+
 let single_char c =
   let c = CD.CharSet.V.mk_char c in
   let c = CD.CharSet.atom c in
@@ -108,15 +111,15 @@ let single_char c =
 let single_string str =
   let rev_str =
     String.to_seq str |>
-    Seq.fold_left (
-      fun acc c ->
-        c::acc
-    ) []
+      Seq.fold_left (
+          fun acc c ->
+          c::acc
+        ) []
   in
   List.fold_left (
-    fun acc c ->
+      fun acc c ->
       CD.Types.times (single_char c |> cons) (cons acc)
-  ) nil_typ rev_str
+    ) nil_typ rev_str
 
 let var_typ = CD.Types.var
 
@@ -127,7 +130,7 @@ let list_of alpha =
     let union = CD.Types.cup nil_typ cons in
     CD.Types.define alpha_list union ;
     descr alpha_list
-*)
+ *)
 
 (*
 let single_list lst =
@@ -136,7 +139,7 @@ let single_list lst =
     fun acc t ->
       CD.Types.times (cons t) (cons acc)
   ) nil_typ
-*)
+ *)
 
 let mk_new_typ = CD.Types.make
 
@@ -194,7 +197,8 @@ let remove_field record field =
   CD.Types.Record.remove_field record (to_label field)
 
 
-(* Maybe not optimised (if no memoisation for Arrow.get). We'll see that later. *)
+(* Maybe not optimised (if no memoisation for Arrow.get). We'll see that
+   later. *)
 let mk_arrow = CD.Types.arrow
 
 let arrow_any = CD.Types.Function.any
@@ -214,11 +218,12 @@ let dnf t =
 
 let full_dnf t =
   let dnf = CD.Types.Function.get_vars t |> CD.Types.Function.Dnf.get_full in
-  dnf |> List.map (fun ((pvs, nvs), expl) ->
-    let pvs = List.map (CD.Types.var) pvs in
-    let nvs = List.map (CD.Types.var) nvs in
-    ((pvs, nvs), expl)
-  )
+  dnf
+  |> List.map
+       (fun ((pvs, nvs), expl) ->
+         let pvs = List.map (CD.Types.var) pvs in
+         let nvs = List.map (CD.Types.var) nvs in
+         ((pvs, nvs), expl) )
 
 let mk_var name = CD.Var.mk name
 let vars = CD.Types.Subst.vars
