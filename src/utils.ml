@@ -1,3 +1,64 @@
+(* ✨ COLORS 💫 *)
+
+let cli_off = ref false
+
+type cli_opt =
+  | Normal       (*  0 *)
+  | Bold         (*  1 *)
+  | Underline    (*  4 *)
+  | Black        (* 30 *)
+  | Red          (* 31 *)
+  | Green        (* 32 *)
+  | Yellow       (* 33 *)
+  | Blue         (* 34 *)
+  | Purple       (* 35 *)
+  | Cyan         (* 36 *)
+  | White        (* 37 *)
+  | BgBlack      (* 40 *)
+  | BgRed        (* 41 *)
+  | BgGreen      (* 42 *)
+  | BgYellow     (* 43 *)
+  | BgBlue       (* 44 *)
+  | BgPurple     (* 45 *)
+  | BgCyan       (* 46 *)
+  | BgWhite      (* 47 *)
+
+let cli_to_code = function
+  | Normal       -> ";0"
+  | Bold         -> ";1"
+  | Underline    -> ";4"
+  | Black        -> ";30"
+  | Red          -> ";31"
+  | Green        -> ";32"
+  | Yellow       -> ";33"
+  | Blue         -> ";34"
+  | Purple       -> ";35"
+  | Cyan         -> ";36"
+  | White        -> ";37"
+  | BgBlack      -> ";40"
+  | BgRed        -> ";41"
+  | BgGreen      -> ";42"
+  | BgYellow     -> ";43"
+  | BgBlue       -> ";44"
+  | BgPurple     -> ";45"
+  | BgCyan       -> ";46"
+  | BgWhite      -> ";47"
+
+let print_cc c = "\o033[" ^ c ^ "m"
+let print_co c = cli_to_code c |> print_cc
+let print_col cl = List.fold_left (fun ac c -> ac ^ cli_to_code c) "" cl
+                   |> print_cc
+
+let cli_reset = print_co Normal
+
+let colorify_l col ?(reset=Some Normal) str =
+  if !cli_off then str
+  else (col |> print_col) ^ str
+       ^ (match reset with None -> "" | Some c -> print_co c)
+
+let colorify col ?(reset=Some Normal) str = colorify_l [Bold;col] ~reset str
+
+(* Utils *)
 
 let print_type t =
     Format.printf "%s\n" (Cduce.string_of_type t)
@@ -8,14 +69,16 @@ let warning pos msg =
     fun acc pos ->
     Format.asprintf "%s %s" acc (Position.string_of_pos pos)
   ) "" pos in
-  Format.printf "Warning:%s\t%s\n" pos msg
+  Format.printf "%s:%s\t%s%s\n"
+    ("Warning" |> colorify_l [Yellow] ~reset:None) pos msg cli_reset
 
 let error pos msg =
   let pos = List.fold_left (
     fun acc pos ->
     Format.asprintf "%s %s" acc (Position.string_of_pos pos)
   ) "" pos in
-  Format.printf "Error:%s\t%s\n" pos msg
+  Format.printf "%s:%s\t%s%s\n"
+    ("Error" |> colorify Red ~reset:None) pos msg cli_reset
 
 let log_enabled = ref false
 let log a =
@@ -25,8 +88,9 @@ let log a =
 
 let option_map f = function None -> None | Some e -> Some (f e)
 let option_chain fs e =
-  List.fold_left (fun acc f -> match acc with None -> None | Some e -> f e) (Some e) fs
-  
+  List.fold_left
+    (fun acc f -> match acc with None -> None | Some e -> f e) (Some e) fs
+
 let identity x = x
 let filter_options x = List.filter_map identity x
 
@@ -76,5 +140,5 @@ let pp_list pp_elt fmt lst =
   List.iter (fun elt -> Format.fprintf fmt "%a ; " pp_elt elt) lst ;
   Format.fprintf fmt "]"
 
-  let assert_with b msg =
-    if not b then failwith msg
+let assert_with b msg =
+  if not b then failwith msg

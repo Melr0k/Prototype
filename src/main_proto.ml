@@ -16,7 +16,8 @@ let std_fmt = ref Format.std_formatter
 let err_fmt = ref Format.err_formatter
 
 let print_ill_typed (pos, str) =
-  Format.fprintf !std_fmt "Ill typed\n%!" ; Utils.error pos str
+  Format.fprintf !std_fmt "%s\n%!" ("Ill typed" |> Utils.colorify Red) ;
+  Utils.error pos str
 
 let print_result str =
   Format.fprintf !std_fmt "%s@?" str
@@ -24,7 +25,7 @@ let print_result str =
 let type_check_program
       (program:Ast.parser_program) (pr:string -> unit) pr_logs pr_ill_typed =
   let test_def (tenv,varm,env) (name,parsed_expr) =
-    Format.ksprintf pr "%s: " name;
+    Format.ksprintf pr "%s " (name ^ ":" |> Utils.colorify_l [Bold]) ;
     begin
       let var = Variable.create (Some name) in
       let annot_expr = Ast.parser_expr_to_annot_expr
@@ -53,14 +54,17 @@ let type_check_program
           "%s (checked in %.02fms (msc:%.02fms, type:%.02fms))\n"
           (Cduce.string_of_type typ) time msc_time typ_time;
         begin match typ_legacy with
-        | None -> Format.ksprintf pr
-                    "===== Good news: Was untypable with POPL22 system =====\n"
+        | None -> Format.ksprintf pr "%s"
+                    ("===== Good news: Was untypable with POPL22 system =====\n"
+                     |> Utils.colorify Green)
         | Some t ->
           if Cduce.subtype typ t |> not
           then (
-            Format.ksprintf pr "===== Warning: Not better than the type obtained by POPL22 system =====\nType was: %s\n"
-            (Cduce.string_of_type t)
-            (*; Format.printf "%a@." pp_e nf_expr*)
+            Format.ksprintf pr "%s %s\n"
+              ("===== Warning: Not better than the type obtained by POPL22 system =====\nType was:"
+               |> Utils.colorify Yellow)
+              (Cduce.string_of_type t)
+          (*; Format.printf "%a@." pp_e nf_expr*)
           )
         end ;
         pr_logs () ; (varm, env)
@@ -70,7 +74,9 @@ let type_check_program
         begin match typ_legacy with
         | None -> ()
         | Some t ->
-           Format.ksprintf pr "===== Warning: Was typable with POPL22 system =====\nType was: %s\n"
+           Format.ksprintf pr "%s %s\n"
+             ("===== Warning: Was typable with POPL22 system =====\nType was:"
+              |> Utils.colorify Yellow)
              (Cduce.string_of_type t);
            pr_logs ()
         end ;
