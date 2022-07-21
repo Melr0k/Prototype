@@ -13,7 +13,11 @@ let print_logs () =
   ()
 
 let std_fmt = ref Format.std_formatter
-let err_fmt = ref Format.err_formatter
+let err_fmt = ref (*Format.err_formatter*)
+                (Format.make_formatter
+                   (fun str _ _ ->
+                     Utils.colorify Red str |> output_string stderr)
+                   (fun () -> flush stderr))
 
 let print_ill_typed (pos, str) =
   Format.fprintf !std_fmt "%s\n%!" ("Ill typed" |> Utils.colorify Red) ;
@@ -45,9 +49,9 @@ let type_check_program
         (*Format.printf "%a@." pp_e nf_expr ;*)
         let typ = Checker.typeof_simple tenv env nf_expr in
         let time2 = Unix.gettimeofday () in
-        let msc_time = (time1 -. time0) *. 1000. in
-        let typ_time = (time2 -. time1) *. 1000. in
-        let time = (time2 -. time1) *. 1000. in
+        let msc_time = (time1 -. time0) *. 1000.
+        and typ_time = (time2 -. time1) *. 1000.
+        and time = (time2 -. time0) *. 1000. in
         let varm = StrMap.add name var varm in
         let env = Env.add var typ env in
         Format.ksprintf pr
@@ -61,7 +65,8 @@ let type_check_program
           if Cduce.subtype typ t |> not
           then (
             Format.ksprintf pr "%s %s\n"
-              ("===== Warning: Not better than the type obtained by POPL22 system =====\nType was:"
+              ("===== Warning: Not better than the type obtained by POPL22 \
+                system =====\nType was:"
                |> Utils.colorify Yellow)
               (Cduce.string_of_type t)
           (*; Format.printf "%a@." pp_e nf_expr*)

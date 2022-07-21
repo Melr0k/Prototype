@@ -13,18 +13,18 @@
     | [] -> (Ast.new_annot pos, Const Unit)
     | [x] -> x
     | x::xs ->
-    let left = x in let right = tuple pos xs in
-    let pos_left = Ast.position_of_expr left in
-    let pos_right = Ast.position_of_expr right in
-    (Ast.new_annot (Position.join pos_left pos_right), Pair (left,right))
+      let left = x in let right = tuple pos xs in
+      let pos_left = Ast.position_of_expr left in
+      let pos_right = Ast.position_of_expr right in
+      (Ast.new_annot (Position.join pos_left pos_right), Pair (left,right))
 
   let rec list_of_elts pos = function
     | [] -> (Ast.new_annot pos, Const Nil)
     | x::xs ->
-    let left = x in let right = list_of_elts pos xs in
-    let pos_left = Ast.position_of_expr left in
-    let pos_right = Ast.position_of_expr right in
-    (Ast.new_annot (Position.join pos_left pos_right), Pair (left,right))
+      let left = x in let right = list_of_elts pos xs in
+      let pos_left = Ast.position_of_expr left in
+      let pos_right = Ast.position_of_expr right in
+      (Ast.new_annot (Position.join pos_left pos_right), Pair (left,right))
 
   let rec record_update base = function
     | [] -> base

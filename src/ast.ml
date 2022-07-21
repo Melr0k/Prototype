@@ -97,16 +97,16 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
          then Var (StrMap.find str env)
          else if has_atom tenv str
          then Const (Atom str)
-         else raise (UndefinedSymbol (str))
+         else raise (UndefinedSymbol str)
       | Lambda (t,str,e) ->
          let (t, vtenv) = match t with
            | Unnanoted -> (Unnanoted, vtenv)
            | ADomain t ->
               let (t, vtenv) = type_expr_to_typ tenv vtenv t in
-              (ADomain (t), vtenv)
+              (ADomain t, vtenv)
            | AArrow t ->
               let (t, vtenv) = type_expr_to_typ tenv vtenv t in
-              (AArrow (t), vtenv)
+              (AArrow t, vtenv)
          in
          let var = Variable.create (Some str) in
          Variable.attach_location var pos ;
