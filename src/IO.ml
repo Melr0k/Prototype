@@ -30,3 +30,10 @@ let parse_program_string str =
   let buf = Lexing.from_string str in
   buf.lex_curr_p <- { buf.lex_curr_p with  pos_fname = "_" };
   Parser.program Lexer.token buf
+
+let parse_py_file source_filename =
+  let cin = open_in source_filename in
+  let buf = Lexing.from_channel cin in
+  buf.lex_curr_p <- {buf.lex_curr_p with  pos_fname = source_filename };
+  Py_lexer.reset_stack ();
+  Py_parser.file Py_lexer.next_token buf

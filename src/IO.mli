@@ -8,3 +8,5 @@ val parse_defs_string : string -> (string * parser_expr) list
 
 val parse_program_file : string -> parser_program
 val parse_program_string : string -> parser_program
+
+val parse_py_file : string -> Py_ast.file

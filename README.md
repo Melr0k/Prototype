@@ -50,3 +50,7 @@ Once compiled, the prototype can be executed with (assuming the current director
 dune exec -- ./prototype.exe [file]
 ```
 If no file is given, the file `test.ml` from the current path is used. The [html]() directory of the repository contains several example files. The syntax is given on the [webpage of the online prototype](https://typecaseunion.github.io/).
+
+## License requirements
+
+The files at `src/python/` are based on the [Why3](https://gitlab.inria.fr/why3/why3) python plugin.

@@ -1,7 +1,7 @@
-(ocamllex lexer)
+(ocamllex lexer py_lexer)
 
 (menhir
- (modules parser))
+ (modules parser py_parser))
 
 (library
  (name main_proto)

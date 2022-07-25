@@ -127,3 +127,11 @@ let main f =
      let msg = Printexc.to_string e
      and stack = Printexc.get_backtrace () in
      Format.fprintf !err_fmt "Uncaught exception: %s%s\n%!" msg stack
+
+let main_py f =
+    let py_ast : Py_ast.file =
+      match f with
+      | `Py_file fn -> IO.parse_py_file fn
+      | `Py_string _ -> failwith "TODO"
+    in
+    Printf.printf "File parsed: \n%s\n" Py_ast.(show_file py_ast)
