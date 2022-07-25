@@ -113,8 +113,10 @@ term:
 | d=definition IN t=term { annot $startpos $endpos (Let (fst d, snd d, t)) }
 (*| lhs=term b=binop rhs=term { App (App (Primitive b, lhs), rhs) }*)
 | t=simple_term { t }
-| IF t=term IS ty=typ THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,ty,t1,t2)) }
-| IF t=term THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,TBase TTrue,t1,t2)) }
+| IF t=term IS ty=typ THEN t1=term ELSE t2=term
+    { annot $startpos $endpos (Ite (t,ty,t1,t2)) }
+| IF t=term THEN t1=term ELSE t2=term
+    { annot $startpos $endpos (Ite (t,TBase TTrue,t1,t2)) }
 
 simple_term:
 | a=simple_term b=atomic_term { annot $startpos $endpos (App (a, b)) }
@@ -123,9 +125,14 @@ simple_term:
 | a=atomic_term s=infix_term b=atomic_term
   { let app1 = annot $startpos $endpos (App (s, a)) in
     annot $startpos $endpos (App (app1, b)) }
+(*| REF t=term { annot $startpos $endpos () }
+| BANG t=term { annot $startpos $endpos () }
+| r=term COLONEQ t=term { annot $startpos $endpos () } *)
 | p=prefix_term a=atomic_term { annot $startpos $endpos (App (p, a)) }
-| a=atomic_term POINT id=identifier { annot $startpos $endpos (Projection (Field id, a)) }
-| a=atomic_term DIFF id=identifier { annot $startpos $endpos (RecordUpdate (a,id,None)) }
+| a=atomic_term POINT id=identifier
+    { annot $startpos $endpos (Projection (Field id, a)) }
+| a=atomic_term DIFF id=identifier
+    { annot $startpos $endpos (RecordUpdate (a,id,None)) }
 | LT t=typ GT { annot $startpos $endpos (Abstract t) }
 (*| m=MINUS t=atomic_term { App (Primitive Neg, t) }*)
 | a=atomic_term { a }
