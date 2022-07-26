@@ -1,3 +1,6 @@
+#  File based on Why3 Software:
+#  why3/plugins/python/test.py
+
 def f(x,y):
     return x+y
 

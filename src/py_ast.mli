@@ -1,3 +1,6 @@
+(*  File based on Why3 Software:    *)
+(*  why3/plugins/python/py_ast.mli  *)
+
 type ident = string
 
 type unop =
