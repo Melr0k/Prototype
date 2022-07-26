@@ -53,4 +53,4 @@ If no file is given, the file `test.ml` from the current path is used. The [html
 
 ## License requirements
 
-The files at `src/python/` are based on the [Why3](https://gitlab.inria.fr/why3/why3) python plugin.
+The files `src/py_*` and `src/test.py` are based on the [Why3](https://gitlab.inria.fr/why3/why3) python plugin.
