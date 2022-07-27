@@ -1,4 +1,3 @@
-
 val regroup : ('a -> 'a -> bool) -> ('a * 'b) list -> ('a * ('b list)) list
 val remove_redundance : Cduce.typ list -> Cduce.typ list
 val partition : Cduce.typ list -> Cduce.typ list
@@ -25,10 +24,13 @@ module type LambdaSA = sig
     val add : t -> Cduce.typ * (annot * Cduce.typ * bool) -> t
     val merge : t -> t -> t
     val construct : (Cduce.typ * (annot * Cduce.typ * bool)) list -> t
-    val construct_with_custom_eq : string -> (Cduce.typ * (annot * Cduce.typ * bool)) list -> t
-    val map_top : (Cduce.typ -> Cduce.typ -> bool -> Cduce.typ * Cduce.typ * bool) -> t -> t
-    val enrich : opt_branches_maxdom:Cduce.typ -> former_typ:Cduce.typ -> annot
-                 -> t -> (Cduce.typ * Cduce.typ) list -> t
+    val construct_with_custom_eq :
+      string -> (Cduce.typ * (annot * Cduce.typ * bool)) list -> t
+    val map_top :
+      (Cduce.typ -> Cduce.typ -> bool -> Cduce.typ * Cduce.typ * bool) -> t -> t
+    val enrich :
+      opt_branches_maxdom:Cduce.typ -> former_typ:Cduce.typ -> annot
+      -> t -> (Cduce.typ * Cduce.typ) list -> t
     val splits : t -> Cduce.typ list
     val apply : t -> Cduce.typ -> Cduce.typ -> bool -> annot
     val normalize : t -> t
@@ -71,4 +73,5 @@ end
 
 module rec BindSA : (BindSA with type annot=AnnotMono.e)
 and LambdaSA : (LambdaSA with type annot=AnnotMono.e)
-and AnnotMono : (AnnotMono with type a=LambdaSA.t anns_a and type e=(LambdaSA.t, BindSA.t) anns_e)
+and AnnotMono : (AnnotMono with type a=LambdaSA.t anns_a
+                            and type e=(LambdaSA.t, BindSA.t) anns_e)

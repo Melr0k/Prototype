@@ -368,9 +368,9 @@ let rec infer_a' ?(no_lambda_ua=false) pos tenv env anns a ts =
                            mk_arrow
                              (cons (worst s))
                              (cons t)) (* t shouldn't contain any joker *)
-                           |_ -> assert false
-                         )
-                     |> List.flatten |> conj |> cap former_typ
+                 |_ -> assert false
+               )
+          |> List.flatten |> conj |> cap former_typ
         in
         let worst_target_t = worst t in
         let res =

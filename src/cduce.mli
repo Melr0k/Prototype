@@ -1,4 +1,3 @@
-
 module CD = Cduce_types
 
 type typ = CD.Types.t
@@ -76,7 +75,8 @@ val arrow_any : typ
 val domain : typ -> typ
 val apply : typ -> typ -> typ
 val dnf : typ -> (typ * typ) list list
-val full_dnf : typ -> ((typ list * typ list) * ((node * node) list * (node * node) list)) list
+val full_dnf : typ -> ((typ list * typ list)
+                       * ((node * node) list * (node * node) list)) list
 
 val mk_var : string -> var
 val vars : typ -> var list

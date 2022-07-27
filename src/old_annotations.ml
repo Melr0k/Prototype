@@ -1,4 +1,3 @@
-
 let partition_aux lst is_empty disjoint cap diff =
   let rec aux lst =
     let rm_empty = List.filter (fun t -> is_empty t |> not) in
@@ -20,10 +19,12 @@ let partition t lst =
   if Cduce.is_empty t then [Cduce.empty]
   else
     let lst = List.map (Cduce.cap_o t) lst in
-    partition_aux (t::lst) Cduce.is_empty Cduce.disjoint Cduce.cap_o Cduce.diff_o
+    partition_aux (t::lst) Cduce.is_empty
+      Cduce.disjoint Cduce.cap_o Cduce.diff_o
 
 let partition_for_full_domain lst =
-  match partition_aux lst Cduce.is_empty Cduce.disjoint Cduce.cap_o Cduce.diff_o with
+  match partition_aux lst Cduce.is_empty
+          Cduce.disjoint Cduce.cap_o Cduce.diff_o with
   | [] -> [Cduce.empty]
   | lst -> lst
 
@@ -78,10 +79,11 @@ module VarAnnot = struct
 
   let pp_filtered names fmt t =
     List.iter (
-      fun (env, t) ->
-        Format.fprintf fmt "---------------@.Type: %a@.Env: %a@.---------------@."
-        Cduce.pp_typ t (Env.pp_filtered names) env
-    ) t
+        fun (env, t) ->
+        Format.fprintf fmt "---------------@.Type: %a@.Env: \
+                            %a@.---------------@."
+          Cduce.pp_typ t (Env.pp_filtered names) env
+      ) t
 
   let pp fmt t =
     Format.fprintf fmt "[%i]" (List.length t)
