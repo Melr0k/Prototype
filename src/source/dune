@@ -1,0 +1,11 @@
+(ocamllex lexer)
+
+(menhir
+ (modules parser))
+
+(library
+ (name source)
+ (libraries common pomap)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.ord))
+ (modules :standard))

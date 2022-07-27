@@ -1,3 +1,6 @@
+open Common
+open Source
+
 open Msc
 
 let regroup equiv res =

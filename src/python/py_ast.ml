@@ -1,20 +1,25 @@
-(*  File based on Why3 Software:    *)
-(*  why3/plugins/python/py_ast.mli  *)
+(*  File based on Why3 Software:   *)
+(*  why3/plugins/python/py_ast.ml  *)
+
+open Common
 
 type ident = string
+[@@deriving show]
 
 type unop =
   | Uneg (* -e *)
   | Unot (* not e *)
+[@@deriving show]
 
 type binop =
   | Badd | Bsub | Bmul | Bdiv | Bmod    (* + - * / % *)
   | Beq | Bneq | Blt | Ble | Bgt | Bge  (* == != < <= > >= *)
   | Band | Bor                          (* && || *)
+[@@deriving show]
 
 type expr = {
     expr_desc: expr_desc;
-    expr_loc : Position.t
+    expr_loc : Position.t [@opaque]
   }
 
 and expr_desc =
@@ -32,7 +37,7 @@ and expr_desc =
 
 and stmt = {
     stmt_desc: stmt_desc;
-    stmt_loc : Position.t
+    stmt_loc : Position.t [@opaque]
   }
 
 and stmt_desc =
@@ -51,16 +56,7 @@ and decl =
   | Dimport of ident * ident list
   | Ddef  of ident * ident list * block
   | Dstmt of stmt
+[@@deriving show]
 
 type file = block
-
-(* Pretty printers *)
-
-val pp_expr : Format.formatter -> expr -> unit
-val pp_stmt : Format.formatter -> stmt -> unit
-val pp_decl : Format.formatter -> decl -> unit
-val pp_file : Format.formatter -> file -> unit
-val show_expr : expr -> string
-val show_stmt : stmt -> string
-val show_decl : decl -> string
-val show_file : file -> string
+[@@deriving show]

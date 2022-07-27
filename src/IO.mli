@@ -1,5 +1,5 @@
-open Ast
-open Py_ast
+open Source.Ast
+open Python.Py_ast
 
 (* val parse_file : ('a -> Lexing.lexbuf -> 'b) -> 'a -> string -> 'b *)
 (* val parse_string : ('a -> Lexing.lexbuf -> 'b) -> 'a -> string -> 'b *)

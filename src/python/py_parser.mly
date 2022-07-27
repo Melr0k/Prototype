@@ -4,6 +4,7 @@
 (*  why3/plugins/python/py_parser.mly  *)
 
 %{
+  open Common
   open Py_ast
 
   let floc = Position.lex_join

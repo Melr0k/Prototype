@@ -1,3 +1,5 @@
+open Common
+
 val regroup : ('a -> 'a -> bool) -> ('a * 'b) list -> ('a * ('b list)) list
 val remove_redundance : Cduce.typ list -> Cduce.typ list
 val partition : Cduce.typ list -> Cduce.typ list

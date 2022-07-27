@@ -1,3 +1,6 @@
+open Source
+open Python
+
 let parse_file parse_hook lex_tok fname =
   let buf = open_in fname |> Lexing.from_channel in
   buf.lex_curr_p <- { buf.lex_curr_p with pos_fname = fname };

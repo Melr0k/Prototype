@@ -1,0 +1,6 @@
+(library
+ (name common)
+ (libraries cduce-types cduce.lib.core)
+ (preprocess
+  (pps ppx_deriving.show))
+ (modules :standard))

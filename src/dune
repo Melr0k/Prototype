@@ -1,17 +1,15 @@
-(ocamllex lexer py_lexer)
-
-(menhir
- (modules parser py_parser))
-
 (library
  (name main_proto)
- (libraries num unix cduce-types  cduce.lib.core pomap)
- (preprocess
-  (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq))
+ (libraries common source typing python
+  unix
+  ;num
+  )
+ ;(preprocess
+ ; (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq))
  (modules
   (:standard
    \
-   ("prototype_js" prototype test))))
+   ("prototype_js" prototype))))
 
 (executable
  (name prototype)

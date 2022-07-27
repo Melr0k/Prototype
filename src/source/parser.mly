@@ -1,6 +1,7 @@
 %{ (* Emacs, use -*- tuareg -*- to open this file. *)
 
   open Ast
+  open Common
   open Types_additions
 
   let parsing_error pos msg =

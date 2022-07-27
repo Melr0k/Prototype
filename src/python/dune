@@ -1,0 +1,11 @@
+(ocamllex py_lexer)
+
+(menhir
+ (modules py_parser))
+
+(library
+ (name python)
+ (libraries common)
+ (preprocess
+  (pps ppx_deriving.show))
+  (modules :standard))

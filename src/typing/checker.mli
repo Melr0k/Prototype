@@ -1,3 +1,5 @@
+open Common
+
 open Msc
 open Types_additions
 open Cduce

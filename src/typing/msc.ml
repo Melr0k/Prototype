@@ -1,3 +1,6 @@
+open Common
+open Source
+
 open Variable
 open Old_annotations
 module ExprMap = Ast.ExprMap
