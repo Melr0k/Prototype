@@ -135,9 +135,10 @@ let main f =
       | `Py_file fn -> parse_py_file fn
       | `Py_string str -> parse_py_string str
     in
-    Printf.printf "File parsed: \n%s\n%!" Py_ast.(show_file py_ast);
-    Printf.printf "File translated: \n%s\n%!" (py_to_source py_ast
-                                             |> Ast.show_parser_program);
+    Printf.printf "%s\n%s\n%!" ("File parsed:" |> Utils.colorify Green)
+      Py_ast.(show_file py_ast);
+    Printf.printf "\n%s\n%s\n%!" ("File translated:" |> Utils.colorify Green)
+      (py_to_source py_ast |> Ast.show_parser_program);
   with
   | FunArgs (pos, f, nb, giv) ->
      Format.fprintf !err_fmt "Error: Wrong number of arguments given to %s: \
