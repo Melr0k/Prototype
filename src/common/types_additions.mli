@@ -111,3 +111,5 @@ val worst : typ -> typ
 val substitute_top_jokers : joker_kind -> typ -> typ -> typ
 
 val share_jokerized_arrows : typ list -> typ list
+
+val pp_type_expr : Format.formatter -> type_expr -> unit

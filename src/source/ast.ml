@@ -1,4 +1,5 @@
 open Common
+
 open Types_additions
 open Variable
 open Pomap
@@ -8,7 +9,7 @@ exception UndefinedSymbol of string
 exception LexicalError of int * string
 exception SyntaxError of string * string (* position * msg *)
 
-type varname = string
+type varname = string [@@deriving show]
 type exprid = int
 
 type annotation = exprid Position.located
@@ -40,13 +41,14 @@ type ('a, 'typ, 'v) ast =
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
-[@@deriving ord]
+[@@deriving ord, show]
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
+type parser_expr = (annotation [@opaque], type_expr, varname) t
+[@@deriving show]
 type annot_expr = (annotation, Cduce.typ, Variable.t) t
 type expr = (unit, Cduce.typ, Variable.t) t
-type parser_expr = (annotation, type_expr, varname) t
 
 module Expr = struct
   type el = expr
@@ -238,5 +240,6 @@ type parser_element =
   | Definition of (bool * (string * parser_expr))
   | Atoms of string list
   | Types of (string * type_expr) list
+[@@deriving show]
 
-type parser_program = parser_element list
+type parser_program = parser_element list [@@deriving show]

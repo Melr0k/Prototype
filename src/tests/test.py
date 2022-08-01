@@ -76,3 +76,16 @@ foo = [1,2,3]
 # Local Variables:
 # compile-command: "make -C ../.. && why3 prove -P alt-ergo test.py"
 # End:
+
+X = 42
+
+def f():
+    X = 43
+    def g():
+        #nonlocal X
+        print(X)
+        #X = 44
+    g()
+    print(X)
+
+f()

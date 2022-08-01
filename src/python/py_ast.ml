@@ -2,6 +2,7 @@
 (*  why3/plugins/python/py_ast.ml  *)
 
 open Common
+open Types_additions
 
 type ident = string
 [@@deriving show]
@@ -60,3 +61,13 @@ and decl =
 
 type file = block
 [@@deriving show]
+
+let basic_types =
+  [ "bool", TBase TBool; "int", TBase (TInt (None, None));
+    "string", TBase TString; "list", TBase TList;
+    "function", TArrow (TBase TEmpty, TBase TAny);
+     "type", TBase TAny;
+    "float", TBase TAny;
+    "NonType", TBase TAny;
+    "builtin_function_or_method", TArrow (TBase TEmpty, TBase TAny)
+  ]

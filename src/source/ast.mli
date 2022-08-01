@@ -1,4 +1,5 @@
 open Common
+
 open Types_additions
 open Variable
 open Pomap
@@ -39,9 +40,9 @@ type ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
+type parser_expr = (annotation, type_expr, varname) t
 type annot_expr = (annotation, Cduce.typ, Variable.t) t
 type expr = (unit, Cduce.typ, Variable.t) t
-type parser_expr = (annotation, type_expr, varname) t
 
 module Expr : Pomap_intf.PARTIAL_ORDER with type el = expr
 module ExprMap : Pomap_intf.POMAP with type key = expr
@@ -83,3 +84,5 @@ val show_const : const -> string
 val show_projection : projection -> string
 val show_type_annot : (Format.formatter -> 'a -> unit) ->
                       'a type_annot -> string
+val show_parser_expr : parser_expr -> string
+val show_parser_program : parser_program -> string

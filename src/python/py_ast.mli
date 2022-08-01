@@ -56,6 +56,8 @@ and decl =
 
 type file = block
 
+val basic_types : (string * Types_additions.type_expr) list
+
 (* Pretty printers *)
 
 val pp_expr : Format.formatter -> expr -> unit

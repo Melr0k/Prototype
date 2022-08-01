@@ -12,6 +12,7 @@ type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
   | TString | TList
+[@@deriving show]
 
 type type_regexp =
   | ReEpsilon | ReEmpty
@@ -19,6 +20,7 @@ type type_regexp =
   | ReSeq of type_regexp * type_regexp
   | ReStar of type_regexp
   | ReAlt of type_regexp * type_regexp
+[@@deriving show]
 
 and type_expr =
   | TVar of string
@@ -32,6 +34,7 @@ and type_expr =
   | TCap of type_expr * type_expr
   | TDiff of type_expr * type_expr
   | TNeg of type_expr
+[@@deriving show]
 
 type type_env = node StrMap.t (* User-defined types *) * StrSet.t (* Atoms *)
 type var_type_env = typ StrMap.t (* Var types *)

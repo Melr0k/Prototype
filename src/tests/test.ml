@@ -337,7 +337,9 @@ let (-) = <Int -> Int -> Int>
 let ( * ) = <Int -> Int -> Int>
 let (/) = <Int -> Int -> Int>
 let (=) = <Int -> Int -> Bool>
-let (!) = <Bool -> Bool> (* Operators starting with ? or ! are prefix *)
+(* let (!) = <Bool -> Bool> (* Operators starting with ? or ! are prefix *)
+   ! is now the read operator
+ *)
 
 let infix_test (x:Int) (y:Bool) = land (! (((1*x) - 3) = 6)) y
 
