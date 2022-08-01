@@ -1,3 +1,4 @@
+open Main
 open Js_of_ocaml
 
 let () =
@@ -14,8 +15,8 @@ let () =
   in
   let ofmt = Format.make_formatter (out_fun false) ignore in
   let efmt = Format.make_formatter (out_fun true) ignore in
-  Main_proto.std_fmt := ofmt;
-  Main_proto.err_fmt := efmt;
+  IO.std_fmt := ofmt;
+  IO.err_fmt := efmt;
   let button = Dom_html.getElementById "checkButton" in
   ignore @@
     Dom_html.addEventListener button Dom_html.Event.click

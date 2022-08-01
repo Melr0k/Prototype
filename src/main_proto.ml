@@ -1,7 +1,6 @@
 open Common
 open Source
 open Typing
-open Python
 
 open IO
 open Msc
@@ -16,13 +15,6 @@ let print_logs () =
   Seq.iter treat (all_logs ()) ;
   clear_logs ()*)
   ()
-
-let std_fmt = ref Format.std_formatter
-let err_fmt = ref (*Format.err_formatter*)
-                (Format.make_formatter
-                   (fun str _ _ ->
-                     Utils.colorify Red str |> output_string stderr)
-                   (fun () -> flush stderr))
 
 let print_ill_typed (pos, str) =
   Format.fprintf !std_fmt "%s\n%!" ("Ill typed" |> Utils.colorify Red) ;
@@ -132,11 +124,3 @@ let main f =
      let msg = Printexc.to_string e
      and stack = Printexc.get_backtrace () in
      Format.fprintf !err_fmt "Uncaught exception: %s%s\n%!" msg stack
-
-let main_py f =
-    let py_ast : Py_ast.file =
-      match f with
-      | `Py_file fn -> IO.parse_py_file fn
-      | `Py_string _ -> failwith "TODO"
-    in
-    Printf.printf "File parsed: \n%s\n" Py_ast.(show_file py_ast)

@@ -38,3 +38,16 @@ let parse_py_file =
 
 let parse_py_string =
   parse_string py_parse Py_lexer.next_token
+
+open Common
+
+let std_fmt = ref Format.std_formatter
+let err_fmt = ref (*Format.err_formatter*)
+                (Format.make_formatter
+                   (fun str _ _ ->
+                     Utils.colorify Red str |> output_string stderr)
+                   (fun () -> flush stderr))
+let wrn_fmt = ref (Format.make_formatter
+                     (fun str _ _ ->
+                       Utils.colorify Yellow str |> output_string stderr)
+                     (fun () -> flush stderr))

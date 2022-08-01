@@ -1,5 +1,5 @@
 (library
- (name main_proto)
+ (name main)
  (libraries common source typing python
   unix
   ;num
@@ -13,12 +13,12 @@
 
 (executable
  (name prototype)
- (libraries main_proto)
+ (libraries main)
  (modules prototype))
 
 (executable
  (name prototype_js)
- (libraries main_proto)
+ (libraries main)
  (modes js)
  (preprocess (pps js_of_ocaml-ppx))
  (modules prototype_js))

@@ -15,3 +15,7 @@ val parse_program_string : string -> parser_program
 
 val parse_py_file : string -> file
 val parse_py_string : string -> file
+
+val std_fmt : Format.formatter ref
+val err_fmt : Format.formatter ref
+val wrn_fmt : Format.formatter ref
