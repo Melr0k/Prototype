@@ -120,7 +120,14 @@ let derecurse_types env venv defs =
        let t2 = aux t2 in
        Typepat.mk_diff t1 t2
     | TNeg t -> Typepat.mk_diff (Typepat.mk_type Cduce.any) (aux t)
-    | TRef _ -> failwith "TODO derecurse_types TRef"
+    | TRef t ->
+       let t = aux t in
+       let get = Typepat.(mk_arrow (mk_type unit_typ) t)
+       and set = Typepat.(mk_arrow t (mk_type unit_typ)) in
+       Cduce_types.Ident.(
+         LabelMap.from_list_disj [Cduce.to_label "get", (get, None)
+                                 ;Cduce.to_label "set", (set, None)] )
+       |> Typepat.(mk_record false)
   and aux_re r =
     match r with
     | ReEmpty -> Typepat.mk_empty
