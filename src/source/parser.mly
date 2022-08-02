@@ -1,8 +1,9 @@
 %{ (* Emacs, use -*- tuareg -*- to open this file. *)
 
-  open Ast
   open Common
+
   open Types_additions
+  open Ast
 
   let parsing_error pos msg =
     raise (SyntaxError (Position.string_of_pos pos, msg))
@@ -49,6 +50,7 @@
 %token FUN LET IN FST SND DEBUG
 %token IF IS THEN ELSE
 %token LPAREN RPAREN EQUAL COMMA COLON INTERROGATION_MARK
+%token BANG COLONEQ REF
 %token ARROW AND OR NEG DIFF
 %token ANY EMPTY BOOL CHAR (*FLOAT*) INT TRUE FALSE UNIT NIL STRING LIST
 %token DOUBLEDASH TIMES PLUS MINUS DIV
@@ -77,6 +79,7 @@
 %left AND
 (*%left PLUS MINUS
 %left TIMES DIV*)
+%left COLONEQ
 %nonassoc DIFF
 %nonassoc NEG
 
@@ -118,6 +121,9 @@ term:
     { annot $startpos $endpos (Ite (t,ty,t1,t2)) }
 | IF t=term THEN t1=term ELSE t2=term
     { annot $startpos $endpos (Ite (t,TBase TTrue,t1,t2)) }
+| REF t=term { annot $startpos $endpos (Ref t) }
+| BANG t=term { annot $startpos $endpos (Read t) }
+| r=term COLONEQ t=term { annot $startpos $endpos (Assign (r,t)) }
 
 simple_term:
 | a=simple_term b=atomic_term { annot $startpos $endpos (App (a, b)) }
@@ -126,9 +132,6 @@ simple_term:
 | a=atomic_term s=infix_term b=atomic_term
   { let app1 = annot $startpos $endpos (App (s, a)) in
     annot $startpos $endpos (App (app1, b)) }
-(*| REF t=term { annot $startpos $endpos () }
-| BANG t=term { annot $startpos $endpos () }
-| r=term COLONEQ t=term { annot $startpos $endpos () } *)
 | p=prefix_term a=atomic_term { annot $startpos $endpos (App (p, a)) }
 | a=atomic_term POINT id=identifier
     { annot $startpos $endpos (Projection (Field id, a)) }

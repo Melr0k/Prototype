@@ -11,7 +11,7 @@ exception TypeDefinitionError of string
 type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
-  | TString | TList
+  | TString | TList (* | TRef *)
 [@@deriving show]
 
 type type_regexp =
@@ -34,6 +34,7 @@ and type_expr =
   | TCap of type_expr * type_expr
   | TDiff of type_expr * type_expr
   | TNeg of type_expr
+  | TRef of type_expr
 [@@deriving show]
 
 type type_env = node StrMap.t (* User-defined types *) * StrSet.t (* Atoms *)
@@ -52,6 +53,7 @@ let type_base_to_typ t =
   | TUnit -> Cduce.unit_typ | TChar -> Cduce.char_typ
   | TAny -> Cduce.any | TEmpty -> Cduce.empty
   | TString -> Cduce.string_typ | TList -> Cduce.list_typ
+(*  | TRef -> failwith "TODO ref type" *)
 
 let derecurse_types env venv defs =
   let open Cduce_core in
@@ -118,6 +120,7 @@ let derecurse_types env venv defs =
        let t2 = aux t2 in
        Typepat.mk_diff t1 t2
     | TNeg t -> Typepat.mk_diff (Typepat.mk_type Cduce.any) (aux t)
+    | TRef _ -> failwith "TODO derecurse_types TRef"
   and aux_re r =
     match r with
     | ReEmpty -> Typepat.mk_empty

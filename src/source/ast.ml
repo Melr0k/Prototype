@@ -41,14 +41,21 @@ type ('a, 'typ, 'v) ast =
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
+  | Ref of ('a, 'typ, 'v) t
+  | Read of ('a, 'typ, 'v) t
+  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
+(*
+  | Seq of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
+ *)
 [@@deriving ord, show]
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
 type parser_expr = (annotation [@opaque], type_expr, varname) t
 [@@deriving show]
-type annot_expr = (annotation, Cduce.typ, Variable.t) t
-type expr = (unit, Cduce.typ, Variable.t) t
+type st_expr     = (annotation * bool, Cduce.typ, Variable.t) t
+type annot_expr  = (annotation       , Cduce.typ, Variable.t) t
+type expr        = (unit             , Cduce.typ, Variable.t) t
 
 module Expr = struct
   type el = expr
@@ -132,6 +139,7 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | Projection (p, e) -> Projection (p, aux vtenv env e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Utils.option_map (aux vtenv env) e2)
+      | _ -> failwith "TODO parser_to_annot ref read assign"
     in
     ((exprid,pos),e)
   in
@@ -150,6 +158,7 @@ let rec unannot (_,e) =
     | Projection (p, e) -> Projection (p, unannot e)
     | RecordUpdate (e1, l, e2) ->
        RecordUpdate (unannot e1, l, Utils.option_map unannot e2)
+    | _ -> failwith "TODO unannot ref read assign"
   in
   ( (), e )
 
@@ -177,6 +186,7 @@ let normalize_bvs e =
       | Projection (p, e) -> Projection (p, aux depth map e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux depth map e1, l, Utils.option_map (aux depth map) e2)
+      | _ -> failwith "TODO normalize_bvs ref read assign"
     in (a, e)
   in aux 0 VarMap.empty e
 
@@ -219,6 +229,7 @@ let substitute aexpr v (annot', expr') =
            | Some e2 -> Some (aux e2)
            | None -> None
          in RecordUpdate (aux e1, f, e2)
+      | _ -> failwith "TODO substitute ref read assign"
     in
     (annot', expr)
   in aux aexpr

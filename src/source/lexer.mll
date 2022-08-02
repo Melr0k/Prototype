@@ -48,12 +48,15 @@ rule token = parse
 | "|"     { OR }
 | "\\"    { DIFF }
 | "~"     { NEG  }
+| ":="    { COLONEQ }
 | ":"     { COLON }
 | ","     { COMMA }
 | "."     { POINT }
 | "="     { EQUAL }
 | "=?"    { EQUAL_OPT }
 | "?"     { INTERROGATION_MARK }
+| "!"     { BANG }
+| "ref"   { REF }
 | "if"    { IF }
 | "is"    { IS }
 | "then"  { THEN }

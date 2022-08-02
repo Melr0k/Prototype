@@ -168,7 +168,7 @@ let convert_to_msc ~legacy ast =
     let rec to_defs_and_a expr_var_map ast =
       let (_, e) = ast in
       let uast = Ast.unannot_and_normalize ast in
-      if ExprMap.mem uast expr_var_map
+      if ExprMap.mem uast expr_var_map (* && (st uast) (* stable ? *) *)
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))
@@ -221,6 +221,7 @@ let convert_to_msc ~legacy ast =
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
            let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
            (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
+        | _ -> failwith "TODO convert_to_msc ref read assign"
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
       let ((_, pos), _) = ast in

@@ -37,12 +37,19 @@ type ('a, 'typ, 'v) ast =
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
+  | Ref of ('a, 'typ, 'v) t
+  | Read of ('a, 'typ, 'v) t
+  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
+(*
+  | Seq of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
+ *)
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-type parser_expr = (annotation, type_expr, varname) t
-type annot_expr = (annotation, Cduce.typ, Variable.t) t
-type expr = (unit, Cduce.typ, Variable.t) t
+type parser_expr = (annotation       , type_expr, varname   ) t
+type st_expr     = (annotation * bool, Cduce.typ, Variable.t) t
+type annot_expr  = (annotation       , Cduce.typ, Variable.t) t
+type expr        = (unit             , Cduce.typ, Variable.t) t
 
 module Expr : Pomap_intf.PARTIAL_ORDER with type el = expr
 module ExprMap : Pomap_intf.POMAP with type key = expr
