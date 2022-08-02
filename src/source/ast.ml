@@ -139,7 +139,10 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | Projection (p, e) -> Projection (p, aux vtenv env e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Utils.option_map (aux vtenv env) e2)
-      | _ -> failwith "TODO parser_to_annot ref read assign"
+      | Ref e -> Ref (aux vtenv env e)               (*   TODO    *)
+      | Read e -> Read (aux vtenv env e)             (*  verify   *)
+      | Assign (e1,e2) -> Assign (aux vtenv env e1,  (* this code *)
+                                  aux vtenv env e2)
     in
     ((exprid,pos),e)
   in
@@ -158,7 +161,9 @@ let rec unannot (_,e) =
     | Projection (p, e) -> Projection (p, unannot e)
     | RecordUpdate (e1, l, e2) ->
        RecordUpdate (unannot e1, l, Utils.option_map unannot e2)
-    | _ -> failwith "TODO unannot ref read assign"
+    | Ref e -> Ref (unannot e)                            (*   TODO    *)
+    | Read e -> Read (unannot e)                          (*  verify   *)
+    | Assign (e1, e2) -> Assign (unannot e1, unannot e2)  (* this code *)
   in
   ( (), e )
 
@@ -186,7 +191,10 @@ let normalize_bvs e =
       | Projection (p, e) -> Projection (p, aux depth map e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux depth map e1, l, Utils.option_map (aux depth map) e2)
-      | _ -> failwith "TODO normalize_bvs ref read assign"
+      | Ref e -> Ref (aux depth map e)               (*   TODO    *)
+      | Read e -> Ref (aux depth map e)              (*  verify   *)
+      | Assign (e1,e2) -> Assign (aux depth map e1,  (* this code *)
+                                  aux depth map e2)
     in (a, e)
   in aux 0 VarMap.empty e
 

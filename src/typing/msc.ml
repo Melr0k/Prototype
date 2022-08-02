@@ -15,6 +15,9 @@ type a =
   | Projection of Ast.projection * Variable.t
   | RecordUpdate of Variable.t * string * Variable.t option
   | Let of Variable.t * Variable.t
+  | Ref of Variable.t
+  | Read of Variable.t
+  | Assign of Variable.t * Variable.t
 [@@deriving show]
 
 and e =
@@ -35,6 +38,7 @@ let map ef af =
     | Projection (p, v) -> Projection (p, v)
     | RecordUpdate (v, str, vo) -> RecordUpdate (v, str, vo)
     | Let (v1, v2) -> Let (v1, v2)
+    | _ -> failwith "TODO msc: ref read assign"
     end
     |> af
   and aux_e e =
@@ -54,6 +58,7 @@ let fold ef af =
     | Abstract _ | Const _ | App _ | Pair _
       | Projection _ | RecordUpdate _ | Ite _ | Let _ -> []
     | Lambda (_, _, _, e) -> [aux_e e]
+    | _ -> failwith "TODO msc: ref read assign"
     end
     |> af a
   and aux_e e =
@@ -85,6 +90,7 @@ let free_vars =
     | App (v1, v2) | Pair (v1, v2) | Let (v1, v2)
       | RecordUpdate (v1, _, Some v2) -> VarSet.add v1 acc |> VarSet.add v2
     | Const _ | Abstract _ -> acc
+    | _ -> failwith "TODO msc: ref read assign"
   in
   (fold_a f1 f2, fold_e f1 f2)
 
@@ -119,6 +125,7 @@ let merge_annots' =
     | Projection (p, v), _ -> Projection (p, v)
     | RecordUpdate (v, str, vo), _ -> RecordUpdate (v, str, vo)
     | Let (v1, v2), _ -> Let (v1, v2)
+    | _ -> failwith "TODO msc: ref read assign"
   and aux_e e1 e2 =
     match e1, e2 with
     | Var v, _ -> Var v
@@ -221,7 +228,17 @@ let convert_to_msc ~legacy ast =
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
            let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
            (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
-        | _ -> failwith "TODO convert_to_msc ref read assign"
+        (* TODO verify this code: *)
+        | Ast.Ref e ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           (defs, expr_var_map, Ref x)
+        | Ast.Read e ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           (defs, expr_var_map, Ref x)
+        | Ast.Assign (e1, e2) ->
+           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
+           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
+           (defs2@defs1, expr_var_map, Assign (x1, x2))
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
       let ((_, pos), _) = ast in

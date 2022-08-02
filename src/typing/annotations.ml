@@ -294,7 +294,8 @@ struct
         [(Cduce.any, (initial_e, Cduce.any, false))])
     | Lambda (_, _, _, _) ->
       LambdaA (Cduce.any_or_absent,
-      LambdaSA.construct_with_custom_eq "initial" [])
+               LambdaSA.construct_with_custom_eq "initial" [])
+    | _ -> failwith "TODO annotations ref read assign"
   and initial_e e : e =
     match e with
     | Var _ -> EmptyA
