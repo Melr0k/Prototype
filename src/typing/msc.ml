@@ -38,7 +38,9 @@ let map ef af =
     | Projection (p, v) -> Projection (p, v)
     | RecordUpdate (v, str, vo) -> RecordUpdate (v, str, vo)
     | Let (v1, v2) -> Let (v1, v2)
-    | _ -> failwith "TODO msc: ref read assign"
+    | Ref v -> Ref v                      (*   TODO    *)
+    | Read v -> Read v                    (*  verify   *)
+    | Assign (v1, v2) -> Assign (v1, v2)  (* this code *)
     end
     |> af
   and aux_e e =
@@ -56,9 +58,9 @@ let fold ef af =
   let rec aux_a a =
     begin match a with
     | Abstract _ | Const _ | App _ | Pair _
-      | Projection _ | RecordUpdate _ | Ite _ | Let _ -> []
+      | Projection _ | RecordUpdate _ | Ite _ | Let _
+      | Ref _ | Read _ | Assign _ -> []
     | Lambda (_, _, _, e) -> [aux_e e]
-    | _ -> failwith "TODO msc: ref read assign"
     end
     |> af a
   and aux_e e =
@@ -83,14 +85,14 @@ let free_vars =
   let f2 a acc =
     let acc = List.fold_left VarSet.union VarSet.empty acc in
     match a with
+    (* TODO verify this code *)
     | Lambda (_, _, v, _) -> VarSet.remove v acc
-    | Projection (_, v) | RecordUpdate (v, _, None) ->
-       VarSet.add v acc
+    | Projection (_, v) | RecordUpdate (v, _, None)
+      | Ref v | Read v -> VarSet.add v acc
     | Ite (v, _, x1, x2) -> VarSet.add v acc |> VarSet.add x1 |> VarSet.add x2
-    | App (v1, v2) | Pair (v1, v2) | Let (v1, v2)
+    | App (v1, v2) | Pair (v1, v2) | Let (v1, v2) | Assign (v1, v2)
       | RecordUpdate (v1, _, Some v2) -> VarSet.add v1 acc |> VarSet.add v2
     | Const _ | Abstract _ -> acc
-    | _ -> failwith "TODO msc: ref read assign"
   in
   (fold_a f1 f2, fold_e f1 f2)
 

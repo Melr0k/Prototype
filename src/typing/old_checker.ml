@@ -140,33 +140,31 @@ and typeof ~legacy tenv env e =
        if legacy then typeof ~legacy tenv env e
        else raise (Ill_typed (pos, "No split for this binding."))
      )
-     else begin
-         let d = disj_o splits in
-         if has_absent d
-         then (
-           if legacy then assert false
-           else
-             let env = Env.add v absent env in
-             (* NOTE: not in paper but required because inference guards
-                annotations with \Gammas that might contain absent *)
-             typeof ~legacy tenv env e
-         )
-         else begin
-             let s = typeof_a ~legacy pos tenv env a in
-             if subtype s d
-             then
-               splits
-               |> List.map (fun t ->
-                      let env = Env.add v t env in
-                      typeof ~legacy tenv env e
-                    ) |> disj_o |> simplify_typ
-             else raise
-                    (Ill_typed
-                       (pos,
-                        "Invalid splits (does not cover the initial domain). "
-                        ^(splits_domain splits s)))
-           end
-       end
+     else
+       let d = disj_o splits in
+       if has_absent d
+       then (
+         if legacy then assert false
+         else
+           let env = Env.add v absent env in
+           (* NOTE: not in paper but required because inference guards
+              annotations with \Gammas that might contain absent *)
+           typeof ~legacy tenv env e
+       )
+       else
+         let s = typeof_a ~legacy pos tenv env a in
+         if subtype s d
+         then
+           splits
+           |> List.map (fun t ->
+                  let env = Env.add v t env in
+                  typeof ~legacy tenv env e
+                ) |> disj_o |> simplify_typ
+         else raise
+                (Ill_typed
+                   (pos,
+                    "Invalid splits (does not cover the initial domain). "
+                    ^(splits_domain splits s)))
 
 let refine_a = Checker.refine_a
 
@@ -511,7 +509,8 @@ and infer_legacy_a' (*pos*)_ tenv env a t =
   | Lambda (va, (Ast.AArrow s as lt), v, e) ->
      let t = cap_o t s in
      type_lambda va lt v e t ~maxdom:(domain s)
-  | _ -> failwith "TODO old_checker ref read assign"
+  | _ -> (* (a, [], false) (* TODO XXX WRONG BAD XXX *) *)
+     failwith "TODO old_checker:infer_legacy_a' ref read assign"
   end
 
 let rec infer_legacy_iterated tenv e =
