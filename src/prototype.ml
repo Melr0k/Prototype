@@ -3,7 +3,7 @@ open Main
 let testdir = "tests/"
 
 (* * )
-let ml_test = testdir ^ "test.ml"
+let ml_test = testdir ^ "test1.ml"
 let () =
   let fn = ref ml_test in
   if Array.length Sys.argv > 1 then fn := Sys.argv.(1) ;
