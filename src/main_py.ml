@@ -83,15 +83,45 @@ let py_to_source py_ast =
           | _ -> fan v l (* Scall case left... *)
   in
 
-  let rec treat_expr (venv, fenv) (e:Py_ast.expr) =
+  (* /!\ Theses functions are not defined in source language /!\ *)
+  let binop b =
+    Ast.Var (match b with
+             | Py_ast.Badd -> "+"
+             | Py_ast.Bsub -> "-"
+             | Py_ast.Bmul -> "*"
+             | Py_ast.Bdiv -> "/"
+             | Py_ast.Bmod -> "%"
+             | Py_ast.Beq  -> "="
+             | Py_ast.Bneq -> "<>"
+             | Py_ast.Blt  -> "<"
+             | Py_ast.Ble  -> "<="
+             | Py_ast.Bgt  -> ">"
+             | Py_ast.Bge  -> ">="
+             | Py_ast.Band -> "&&"
+             | Py_ast.Bor  -> "||"
+      ) |> dannot
+  and unop u =
+    Ast.Var (match u with
+             | Py_ast.Uneg -> "-"
+             | Py_ast.Unot -> "!"
+      ) |> dannot
+  in
+  let rec treat_expr (venv, fenv as env) (e:Py_ast.expr) =
     let aux = function
       | Py_ast.Enone -> Ast.(Const Unit)
-      | Py_ast.Eint str ->
-         Ast.(Const (Int (int_of_string str)))
+      | Py_ast.Ebool b -> Ast.(Const (Bool b))
+      | Py_ast.Eint istr -> Ast.(Const (Int (int_of_string istr)))
+      | Py_ast.Estring str -> Ast.(Const (String str))
       | Py_ast.Eident id ->
          if Py_env.find_opt id venv = Some true
          then Ast.(Read (Var id |> annot e.expr_loc))
          else Ast.(Var id)
+      | Py_ast.Ebinop (b, e1, e2) ->
+         Ast.(App ( App (binop b, treat_expr env e1) |> annot e.expr_loc
+                  , treat_expr env e2)
+         )
+      | Py_ast.Eunop (u, e) ->
+         Ast.(App (unop u, treat_expr env e))
       | Py_ast.Ecall (fid, args) ->
          let argvars = match Py_env.find_opt fid fenv with
            | Some f -> f
@@ -105,10 +135,12 @@ let py_to_source py_ast =
                     |> List.rev
                     |> make_app fid e.expr_loc argvars)
          )
-      | _ -> failwith "TODO expr"
+      | Py_ast.Elist _ -> failwith "Lists not supported yet."
+      | Py_ast.Emake _ -> failwith "Make list not supported yet."
+      | Py_ast.Eget _ -> failwith "Get not supported yet."
     in aux e.expr_desc |> annot e.expr_loc
   in
-  let rec treat_stmt (env) (s:Py_ast.stmt) =
+  let rec treat_stmt env (s:Py_ast.stmt) =
     let aux = function
       | Py_ast.Sif (t, e1, e2) ->
          let open Py_ast in
@@ -116,20 +148,30 @@ let py_to_source py_ast =
          (* if (type(...) == ...): ...  =>  if ... is ... then ... *)
          | Ebinop ( Beq
                   , {expr_desc=Ecall ("type", [e0]); expr_loc=_}
-                  , {expr_desc=Estring typ; expr_loc=_}) ->
+                  , {expr_desc=Estring typ; expr_loc=_} )
+         | Ebinop ( Beq
+                  , {expr_desc=Ecall ("type", [e0]); expr_loc=_}
+                  , {expr_desc=Eident typ; expr_loc=_} )->
             Ast.Ite ( treat_expr env e0
                     , (match List.assoc_opt typ basic_types with
                          Some t -> t | _ -> TCustom typ)
                     , treat_fun_decl env e1
                     , treat_fun_decl env e2 )
-         | _ -> failwith "TODO normal if"
+         | _ -> Ast.Ite ( treat_expr env t        (* TODO treat case of   *)
+                        , TBase TTrue             (* toplevel call, where *)
+                        , treat_fun_decl env e1   (* we need to call      *)
+                        , treat_fun_decl env e2 ) (* treat_decl function  *)
          end
       | Py_ast.Sreturn e | Py_ast.Seval e ->
          treat_expr env e |> snd
-      | Py_ast.Sassign _ -> assert false (* treated in treat_fun_decl *)
-      | _ -> failwith "TODO stmt"
+      | Py_ast.Sassign _ -> assert false (* treated in treat_[fun_]decl *)
+      | Py_ast.Swhile _ -> failwith "While not supported yet."
+      | Py_ast.Sfor _ -> failwith "For not supported yet."
+      | Py_ast.Sset _ -> failwith "Set not supported yet."
+      | Py_ast.Sbreak -> failwith "Break not supported yet."
     in aux s.stmt_desc |> annot s.stmt_loc
-  and treat_fun_decl ((venv, fenv) as env : 'b Py_env.t * 'sl Py_env.t)
+  and treat_fun_decl (venv, fenv as env : 'b Py_env.t * 'sl Py_env.t)
+      (* TODO add toplevel:bool *)
       : Py_ast.file -> Ast.parser_expr =
     (* inside function: return expected, otherwise give Unit *)
     function
@@ -137,7 +179,7 @@ let py_to_source py_ast =
     | x::l ->
        begin match x with
        | Py_ast.Dimport _ ->
-          Format.fprintf !wrn_fmt "Warning: import not supported yet\n%!";
+          Format.fprintf !wrn_fmt "Warning: import not supported yet.\n%!";
           treat_fun_decl env l
        | Py_ast.Ddef _ -> failwith "TODO fun decl in fun"
        | Py_ast.Dstmt s ->
@@ -169,7 +211,7 @@ let py_to_source py_ast =
                 ) |> annot s.stmt_loc)
           end
        end
-  and treat_decl ((venv, fenv) as env : (bool Py_env.t * string list Py_env.t))
+  and treat_decl (venv, fenv as env : (bool Py_env.t * string list Py_env.t))
       : Py_ast.file -> Ast.parser_program
     = function (* at toplevel *)
     | [] -> []
