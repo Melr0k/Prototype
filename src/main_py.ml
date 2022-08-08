@@ -22,6 +22,41 @@ let py_to_source py_ast =
   let argn = "__args__" in (* argument of all function *)
   let argvar = Ast.Var argn |> dannot in
 
+  (* fan v l = forward analysis :
+     Is v assigned to a value in l ? Should v be a ref ?
+
+     In case of a call, what should we do?
+     => x = 5
+        g(x)  <- perhaps x needs to be a ref, but we havn't run typechecking yet
+   *)
+  let fan ?(allow=false) v l =
+    (* allow = give true on the second assign found: allow 1 *)
+    let rec aux allow =
+      let find_v_opt = List.find_opt (fun e -> e = v) in
+      function
+      | [] -> false
+      | s::l ->
+         match s with (* 🤔 can we use a monad here ? *)
+         | Py_ast.Dimport (_, idl) ->
+            begin match find_v_opt idl with
+            | Some _ -> false (* override *)
+            | None -> aux allow l
+            end
+         | Py_ast.Ddef (fid, _, _) -> (* we don't have the `global` directive *)
+            if fid = v then false else aux allow l
+         | Py_ast.Dstmt s ->
+            match s.stmt_desc with
+            | Py_ast.Sassign (id, _) when id = v ->
+               not allow || aux false l
+            | Py_ast.Sif (_, e1, e2) ->
+               aux allow e1 || aux allow e2 || aux allow l
+            | Py_ast.Sfor (_, _, b) | Py_ast.Swhile (_, b) ->
+                (* useless, not treated by treat_* *)
+               aux allow b || aux allow l
+            | _ -> aux allow l (* Scall case left... *)
+    in aux allow l
+  in
+
   let rec make_lambda args body : Ast.parser_expr =
     (* build the arguments of Ast.Lambda with n arguments:
        def f(x, y, ...):
@@ -50,37 +85,26 @@ let py_to_source py_ast =
     in
     aux 0 (varl, astl)
   in
-
-  (* fan v l = forward analysis :
-     Is v assigned to a value in l ? Should v be a ref ?
-
-     In case of a call, what should we do?
-     => x = 5
-        g(x)  <- perhaps x needs to be a ref, but we havn't run typechecking yet
-   *)
-  let rec fan v =
-    let find_v_opt = List.find_opt (fun e -> e = v) in
-    function
-    | [] -> false
-    | s::l ->
-       match s with (* 🤔 can we use a monad here ? *)
-       | Py_ast.Dimport (_, idl) ->
-          begin match find_v_opt idl with
-          | Some _ -> false
-          | None -> fan v l
-          end
-       | Py_ast.Ddef (fid, args, body) ->
-          if fid = v
-          then false
-          else
-            begin match find_v_opt args with
-            | Some _ -> fan v l (* overwritten inside the body *)
-            | None -> (fan v body || fan v l)
-            end
-       | Py_ast.Dstmt s ->
-          match s.stmt_desc with
-          | (Py_ast.Sassign (id, _)) when id = v -> true
-          | _ -> fan v l (* Scall case left... *)
+  let upd_env (venv, fenv) (args, body) =
+    (* variable's scope in python is weird, but it's ok *)
+    let rec get_def = function
+      | Py_ast.Dimport (_, idl) -> idl
+      | Py_ast.Ddef (fid, _, _) -> [fid]
+      | Py_ast.Dstmt s ->
+         match s.stmt_desc with
+         | Py_ast.Sassign (id, _) -> [id]
+         | _ -> [] (* ignore definitions in if blocks: it's another scope *)
+    and fold_def = fun acc s -> get_def s @ acc in
+    let venv, vassign =
+      List.( fold_left (fun acc x -> Py_env.add x false acc) venv args
+           , fold_left fold_def [] body)
+    in
+    (* for all v in vassign, assoc with fan value & return env *)
+    ( List.fold_left
+        (fun acc v -> Py_env.add v (fan ~allow:true v body) acc)
+        venv
+        vassign
+    , fenv )
   in
 
   (* /!\ Theses functions are not defined in source language /!\ *)
@@ -188,7 +212,8 @@ let py_to_source py_ast =
          Format.fprintf !wrn_fmt "Warning: import not supported yet.\n%!";
          `Pass
       | Py_ast.Ddef (fid, args, body) ->
-         let env, b = treat_decl_ddef env (fid, args, body) in
+         let env, b =
+           treat_decl_ddef (upd_env env (args,body)) (fid, args, body) in
          `Let (env, fid, b, dannot)
       | Py_ast.Dstmt s ->
          begin match s.stmt_desc with
@@ -208,7 +233,18 @@ let py_to_source py_ast =
                              , Ast.(Assign ( Var v |> dannot
                                            , treat_expr env e))
                                |> annot s.stmt_loc )
-                 else assert false (* x defined, not ref, but assigned ! *)
+                 else begin
+                     (* * )
+                       Format.fprintf !wrn_fmt
+                       "%s defined, not ref, but assigned. Should occur \
+                        only once, and python probably don't accept it.\n%!" v;
+                     ( * *)
+                     let v_is_ref = fan v next in
+                     let e1 = treat_expr env e
+                     in `Let (env, v, (if v_is_ref
+                                       then Ast.Ref e1 |> dannot
+                                       else e1), annot s.stmt_loc)
+                   end
             else
               let v_is_ref = fan v next in
               let e1 = treat_expr env e
