@@ -21,9 +21,11 @@ let cons = CD.Types.cons
 
 
 let any = CD.Types.any
-let empty = CD.Types.empty
 let any_node = cons any
+let empty = CD.Types.empty
 let empty_node = cons empty
+let any_ref = CD.Builtin_defs.ref_type any_node
+let any_ref_node = cons any_ref
 
 (* ----- *)
 
@@ -232,3 +234,12 @@ let var_name = CD.Var.name
 let var_set = CD.Var.Set.from_list
 let substitute = CD.Types.Subst.apply
 let mk_subst = CD.Types.Subst.from_list
+
+(* References *)
+let fun_create_ref = mk_arrow any_node any_ref_node
+let fun_create_ref_node = cons fun_create_ref
+let fun_get_ref = mk_arrow any_ref_node any_node
+let fun_get_ref_node = cons fun_get_ref
+let fun_set_ref =
+  mk_arrow any_ref_node (cons (mk_arrow any_node (cons unit_typ)))
+let fun_set_ref_node = cons fun_set_ref

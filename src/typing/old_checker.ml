@@ -125,7 +125,6 @@ let rec typeof_a ~legacy pos tenv env a =
      if Env.mem_strict v1 env
      then var_type pos v2 env
      else raise (Ill_typed (pos, "Unable to type the definition."))
-  | _ -> failwith "TODO old_checker ref read assign"
 
 and typeof ~legacy tenv env e =
   match e with
@@ -509,8 +508,6 @@ and infer_legacy_a' (*pos*)_ tenv env a t =
   | Lambda (va, (Ast.AArrow s as lt), v, e) ->
      let t = cap_o t s in
      type_lambda va lt v e t ~maxdom:(domain s)
-  | _ -> (* (a, [], false) (* TODO XXX WRONG BAD XXX *) *)
-     failwith "TODO old_checker:infer_legacy_a' ref read assign"
   end
 
 let rec infer_legacy_iterated tenv e =
@@ -743,7 +740,6 @@ let rec infer_a' pos tenv env a t =
     | Lambda (va, (Ast.AArrow s as lt), v, e) ->
        let t = cap_o t s in
        type_lambda va lt v e t ~maxdom:(domain s)
-    | _ -> failwith "TODO old_checker ref read assign"
     end
 
 and infer' tenv env e t =

@@ -25,14 +25,14 @@ let print_result str =
 
 let type_check_program
       (program:Ast.parser_program) (pr:string -> unit) pr_logs pr_ill_typed =
-  let test_def (tenv,varm,env) (name,parsed_expr) =
-    Format.ksprintf pr "%s " (name ^ ":" |> Utils.colorify_l [Bold]) ;
+  let test_def (tenv,varm,env,stenv,bvars) (name,parsed_expr) =
+    Format.ksprintf pr "%s " (name ^ ":" |> Utils.colorify White) ;
     begin
       let var = Variable.create (Some name) in
-      let annot_expr = Ast.parser_expr_to_annot_expr
-                         tenv empty_vtenv varm parsed_expr in
+      let ((_,v_st),_) as annot_expr =
+        Ast.parser_expr_to_annot_expr tenv empty_vtenv varm stenv parsed_expr in
       let time0 = Unix.gettimeofday () in
-      let nf_expr = convert_to_msc ~legacy:true annot_expr in
+      let nf_expr = convert_to_msc ~legacy:true bvars annot_expr in
       let time1 = Unix.gettimeofday () in
       assert (VarSet.subset (fv_e nf_expr) (Env.domain env |> VarSet.of_list)) ;
       let tmp_log = !Utils.log_enabled in
@@ -46,11 +46,16 @@ let type_check_program
         (*Format.printf "%a@." pp_e nf_expr ;*)
         let typ = Checker.typeof_simple tenv env nf_expr in
         let time2 = Unix.gettimeofday () in
+
         let msc_time = (time1 -. time0) *. 1000.
         and typ_time = (time2 -. time1) *. 1000.
         and time = (time2 -. time0) *. 1000. in
+
         let varm = StrMap.add name var varm in
         let env = Env.add var typ env in
+        let stenv = VarMap.add var v_st stenv
+        in
+
         Format.ksprintf pr
           "%s (checked in %.02fms (msc:%.02fms, type:%.02fms))\n"
           (Cduce.string_of_type typ) time msc_time typ_time;
@@ -69,7 +74,7 @@ let type_check_program
           (*; Format.printf "%a@." pp_e nf_expr*)
           )
         end ;
-        pr_logs () ; (varm, env)
+        pr_logs () ; (varm, env, stenv)
       with Checker.Ill_typed (pos, str) ->
         (*Format.printf "%a@." pp_e nf_expr ;*)
         pr_ill_typed (pos, str);
@@ -82,26 +87,41 @@ let type_check_program
              (Cduce.string_of_type t);
            pr_logs ()
         end ;
-        (varm,env)
+        (varm,env,stenv)
     end
   in
-  let treat_elem (tenv,varm,env) elem =
+  let treat_elem (tenv,varm,env,stenv,bvars) elem =
     match elem with
     | Ast.Definition (log, d) ->
        if log then Utils.log_enabled := true ;
-       let (varm,env) = test_def (tenv,varm,env) d in
+       let (varm,env,stenv) = test_def (tenv,varm,env,stenv,bvars) d in
        Utils.log_enabled := false ;
-       (tenv,varm,env)
+       (tenv,varm,env,stenv,bvars)
     | Ast.Atoms lst ->
        let tenv = List.fold_left define_atom tenv lst in
-       (tenv,varm,env)
+       (tenv,varm,env,stenv,bvars)
     | Ast.Types lst ->
        let (tenv, _) = define_types tenv empty_vtenv lst in
-       (tenv,varm,env)
+       (tenv,varm,env,stenv,bvars)
+  in
+  let ini_name_var_map, ini_env, st_env, builtin_vars =
+    List.fold_left
+      (fun (varm, env, st, bv) (name, typ, b) ->
+        let var = Variable.create (Some name) in
+        ( StrMap.add name var varm
+        , Env.add var typ env
+        , VarMap.add var b st
+        , (name, var)::bv )
+      )
+      (Ast.empty_name_var_map, Env.empty, VarMap.empty, [])
+      (* name      , type : typ          , st  *)
+      [ (ref_create, Cduce.fun_create_ref, true )
+      ; (ref_get   , Cduce.fun_get_ref   , false)
+      ; (ref_set   , Cduce.fun_set_ref   , true ) ]
   in
   ignore (List.fold_left
             treat_elem
-            (empty_tenv, Ast.empty_name_var_map, Env.empty)
+            (empty_tenv, ini_name_var_map, ini_env, st_env, builtin_vars)
             program)
 
 let main f =

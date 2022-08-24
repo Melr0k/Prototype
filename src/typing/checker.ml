@@ -171,7 +171,6 @@ let rec typeof_a pos tenv env anns a =
      if Env.mem_strict v1 env
      then var_type pos v2 env
      else raise (Ill_typed (pos, "Unable to type the definition."))
-  | _ -> failwith "TODO checker ref read assign"
 
 and typeof tenv env anns e =
   match e with
@@ -277,7 +276,6 @@ let refine_a ~sufficient tenv env a prev_t t =
             |>  option_chain [Env_refinement.refine v1 any ;
                               Env_refinement.refine v2 t]]
           |> filter_options
-       | _ -> failwith "TODO checker ref read assign"
 
 (* ===== INFER ===== *)
 
@@ -560,7 +558,6 @@ let rec infer_a' ?(no_lambda_ua=false) pos tenv env anns a ts =
          type_lambda v e ts va ~opt_branches_maxdom:empty ~former_typ
       | Lambda (_, Ast.AArrow _, _, _), LambdaA _ -> ([], false)
       | Lambda _, _ -> assert false
-      | _ -> failwith "TODO checker ref read assign"
     end
 
 and infer' tenv env anns e' t =

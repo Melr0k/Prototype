@@ -15,9 +15,6 @@ type a =
   | Projection of Ast.projection * Variable.t
   | RecordUpdate of Variable.t * string * Variable.t option
   | Let of Variable.t * Variable.t
-  | Ref of Variable.t
-  | Read of Variable.t
-  | Assign of Variable.t * Variable.t
 [@@deriving show]
 
 and e =
@@ -38,9 +35,6 @@ let map ef af =
     | Projection (p, v) -> Projection (p, v)
     | RecordUpdate (v, str, vo) -> RecordUpdate (v, str, vo)
     | Let (v1, v2) -> Let (v1, v2)
-    | Ref v -> Ref v                      (*   TODO    *)
-    | Read v -> Read v                    (*  verify   *)
-    | Assign (v1, v2) -> Assign (v1, v2)  (* this code *)
     end
     |> af
   and aux_e e =
@@ -58,8 +52,7 @@ let fold ef af =
   let rec aux_a a =
     begin match a with
     | Abstract _ | Const _ | App _ | Pair _
-      | Projection _ | RecordUpdate _ | Ite _ | Let _
-      | Ref _ | Read _ | Assign _ -> []
+      | Projection _ | RecordUpdate _ | Ite _ | Let _ -> []
     | Lambda (_, _, _, e) -> [aux_e e]
     end
     |> af a
@@ -87,10 +80,9 @@ let free_vars =
     match a with
     (* TODO verify this code *)
     | Lambda (_, _, v, _) -> VarSet.remove v acc
-    | Projection (_, v) | RecordUpdate (v, _, None)
-      | Ref v | Read v -> VarSet.add v acc
+    | Projection (_, v) | RecordUpdate (v, _, None) -> VarSet.add v acc
     | Ite (v, _, x1, x2) -> VarSet.add v acc |> VarSet.add x1 |> VarSet.add x2
-    | App (v1, v2) | Pair (v1, v2) | Let (v1, v2) | Assign (v1, v2)
+    | App (v1, v2) | Pair (v1, v2) | Let (v1, v2)
       | RecordUpdate (v1, _, Some v2) -> VarSet.add v1 acc |> VarSet.add v2
     | Const _ | Abstract _ -> acc
   in
@@ -127,7 +119,6 @@ let merge_annots' =
     | Projection (p, v), _ -> Projection (p, v)
     | RecordUpdate (v, str, vo), _ -> RecordUpdate (v, str, vo)
     | Let (v1, v2), _ -> Let (v1, v2)
-    | _ -> failwith "TODO msc: ref read assign"
   and aux_e e1 e2 =
     match e1, e2 with
     | Var v, _ -> Var v
@@ -172,12 +163,11 @@ let filter_expr_map vals em =
 
 exception IsVar of Variable.t
 
-let convert_to_msc ~legacy ast =
+let convert_to_msc ~legacy bvars ast =
   let aux expr_var_map ast =
-    let rec to_defs_and_a expr_var_map ast =
-      let (_, e) = ast in
+    let rec to_defs_and_a expr_var_map (_, e as ast) =
       let uast = Ast.unannot_and_normalize ast in
-      if ExprMap.mem uast expr_var_map (* && (st uast) (* stable ? *) *)
+      if ExprMap.mem uast expr_var_map && (fst uast) (* stable ? *)
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))
@@ -230,20 +220,24 @@ let convert_to_msc ~legacy ast =
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
            let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
            (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
-        (* TODO verify this code: *)
         | Ast.Ref e ->
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-           (defs, expr_var_map, Ref x)
+           let create_ref = List.assoc ref_create bvars in
+           (defs, expr_var_map, App (create_ref, x))
         | Ast.Read e ->
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-           (defs, expr_var_map, Ref x)
+           let get_ref = List.assoc ref_get bvars in
+           (defs, expr_var_map, App (get_ref, x))
         | Ast.Assign (e1, e2) ->
            let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
            let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
-           (defs2@defs1, expr_var_map, Assign (x1, x2))
+           let set_ref = List.assoc ref_set bvars in
+           let tmp = Variable.create (Some "__assign_tmp") in
+           (* no need to attach location *)
+           ((tmp, App (set_ref, x1))::defs2@defs1, expr_var_map, App (tmp, x2))
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
-      let ((_, pos), _) = ast in
+      let (((_, pos),_), _) = ast in
       try
         let (defs, expr_var_map, a) = to_defs_and_a expr_var_map ast in
         let var = Variable.create name in
@@ -253,7 +247,8 @@ let convert_to_msc ~legacy ast =
         let defs = (var, a)::defs in
         (defs, expr_var_map, var)
       with IsVar v ->
-        (Variable.attach_location v pos ; ([], expr_var_map, v))
+        Variable.attach_location v pos ;
+        ([], expr_var_map, v)
 
     and defs_and_x_to_e defs x =
       defs |>

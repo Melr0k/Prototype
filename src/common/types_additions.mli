@@ -9,7 +9,7 @@ exception TypeDefinitionError of string
 type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
-  | TString | TList (* | TRef *)
+  | TString | TList | TRef
 
 type type_regexp =
   | ReEpsilon | ReEmpty
@@ -30,7 +30,6 @@ and type_expr =
   | TCap of type_expr * type_expr
   | TDiff of type_expr * type_expr
   | TNeg of type_expr
-  | TRef of type_expr
 
 type type_env
 type var_type_env

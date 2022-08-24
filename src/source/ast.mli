@@ -47,9 +47,8 @@ type ('a, 'typ, 'v) ast =
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
 type parser_expr = (annotation       , type_expr, varname   ) t
-type st_expr     = (annotation * bool, Cduce.typ, Variable.t) t
-type annot_expr  = (annotation       , Cduce.typ, Variable.t) t
-type expr        = (unit             , Cduce.typ, Variable.t) t
+type annot_expr  = (annotation * bool, Cduce.typ, Variable.t) t
+type expr        = (bool             , Cduce.typ, Variable.t) t (* st expr *)
 
 module Expr : Pomap_intf.PARTIAL_ORDER with type el = expr
 module ExprMap : Pomap_intf.POMAP with type key = expr
@@ -65,9 +64,10 @@ val new_annot : Position.t -> annotation
 val copy_annot : annotation -> annotation
 
 val parser_expr_to_annot_expr :
-  type_env -> var_type_env -> name_var_map -> parser_expr -> annot_expr
+  type_env -> var_type_env -> name_var_map -> st_env ->
+  parser_expr -> annot_expr
 
-(*val unannot : annot_expr -> expr*)
+(*val unannot : (VarSet.elt * bool) list -> annot_expr -> expr*)
 val unannot_and_normalize : annot_expr -> expr
 (*val fv : annot_expr -> VarSet.t*)
 val substitute : annot_expr -> Variable.t -> annot_expr -> annot_expr

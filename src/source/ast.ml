@@ -53,9 +53,8 @@ and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
 type parser_expr = (annotation [@opaque], type_expr, varname) t
 [@@deriving show]
-type st_expr     = (annotation * bool, Cduce.typ, Variable.t) t
-type annot_expr  = (annotation       , Cduce.typ, Variable.t) t
-type expr        = (unit             , Cduce.typ, Variable.t) t
+type annot_expr  = (annotation * bool, Cduce.typ, Variable.t) t
+type expr        = (bool             , Cduce.typ, Variable.t) t
 
 module Expr = struct
   type el = expr
@@ -63,7 +62,7 @@ module Expr = struct
   let compare t1 t2 =
     try (
       let i = compare
-                (fun () () -> 0)
+                (fun _  _  -> 0)
                 Types_compare.compare_typ
                 Variable.compare t1 t2 in
       match i with
@@ -95,7 +94,7 @@ let new_annot p =
 let copy_annot a =
   new_annot (Position.position a)
 
-let parser_expr_to_annot_expr tenv vtenv name_var_map e =
+let annotate tenv vtenv name_var_map e =
   let rec aux vtenv env ((exprid,pos),e) =
     let e = match e with
       | Abstract t ->
@@ -148,8 +147,63 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
   in
   aux vtenv name_var_map e
 
-let rec unannot (_,e) =
-  let e = match e with
+let st stenv ae =
+  let rec aux stenv (a, e) =
+    let b, e = match e with
+      | Abstract t -> true, Abstract t
+      | Const c -> true, Const c
+      | Var v -> begin match VarMap.find_opt v stenv with
+                 | Some b -> b, Var v
+                 | None -> failwith "Variable not found in st environnement."
+                 end
+      | Lambda (t, v, e) ->
+         let (_,b), _ as e = aux (VarMap.add v true stenv) e in
+         b, Lambda (t, v, e)
+      | Ite (e, t, e1, e2) ->
+         let (_,b ), _ as e  = aux stenv e  in
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let (_,b2), _ as e2 = aux stenv e2 in
+         b && b1 && b2, Ite (e, t, e1, e2)
+      | App (e1, e2) ->
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let (_,b2), _ as e2 = aux stenv e2 in
+         b1 && b2,  App (e1, e2)
+      | Let (v, e1, e2) ->
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let (_,b2), _ as e2 = aux (VarMap.add v b1 stenv) e2 in
+         b1 && b2, Let (v, e1, e2)
+      | Pair (e1, e2) ->
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let (_,b2), _ as e2 = aux stenv e2 in
+         b1 && b2, Pair (e1, e2)
+      | Projection (p, e) ->
+         let (_,b), _ as e = aux stenv e in
+         b, Projection (p, e)
+      | RecordUpdate (e1, l, e2) ->
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let b2, e2 = begin match Utils.option_map (aux stenv) e2 with
+                      | None -> true, None
+                      | Some ((_,b), _) as e -> b, e
+                      end in
+         b1 && b2, RecordUpdate (e1, l, e2)
+      | Ref e ->
+         let (_,b), _ as e = aux stenv e in
+         b, Ref e
+      | Read e -> false, Read (aux stenv e)
+      | Assign (e1, e2) ->
+         let (_,b1), _ as e1 = aux stenv e1 in
+         let (_,b2), _ as e2 = aux stenv e2 in
+         b1 && b2, Assign (e1, e2)
+    in
+    ((a,b), e)
+  in
+  aux stenv ae
+
+let parser_expr_to_annot_expr tenv vtenv name_var_map stenv e =
+  annotate tenv vtenv name_var_map e |> st stenv
+
+let rec unannot ((_,b),e) =
+    let e = match e with
     | Abstract t -> Abstract t
     | Const c -> Const c
     | Var v -> Var v
@@ -161,18 +215,19 @@ let rec unannot (_,e) =
     | Projection (p, e) -> Projection (p, unannot e)
     | RecordUpdate (e1, l, e2) ->
        RecordUpdate (unannot e1, l, Utils.option_map unannot e2)
-    | Ref e -> Ref (unannot e)                            (*   TODO    *)
-    | Read e -> Read (unannot e)                          (*  verify   *)
-    | Assign (e1, e2) -> Assign (unannot e1, unannot e2)  (* this code *)
-  in
-  ( (), e )
+    | Ref e -> Ref (unannot e)
+    | Read e -> Read (unannot e)
+    | Assign (e1, e2) -> Assign (unannot e1, unannot e2)
+    in
+    ( b, e )
 
 let normalize_bvs e =
-  let rec aux depth map (a, e) =
+  let rec aux depth map (stable, e) =
     let e = match e with
       | Abstract t -> Abstract t
       | Const c -> Const c
-      | Var v when VarMap.mem v map -> Var (VarMap.find v map)
+      | Var v when stable && VarMap.mem v map ->
+         Var (VarMap.find v map)
       | Var v -> Var v
       | Lambda (t, v, e) ->
          let v' = get_predefined_var depth in
@@ -185,17 +240,17 @@ let normalize_bvs e =
       | Let (v, e1, e2) ->
          let v' = get_predefined_var depth in
          let map = VarMap.add v v' map in
+         (*            ↓  why both depth+1 ? ↓             *)
          Let (v', aux (depth+1) map e1, aux (depth+1) map e2)
       | Pair (e1, e2) ->
          Pair (aux depth map e1, aux depth map e2)
       | Projection (p, e) -> Projection (p, aux depth map e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux depth map e1, l, Utils.option_map (aux depth map) e2)
-      | Ref e -> Ref (aux depth map e)               (*   TODO    *)
-      | Read e -> Ref (aux depth map e)              (*  verify   *)
-      | Assign (e1,e2) -> Assign (aux depth map e1,  (* this code *)
-                                  aux depth map e2)
-    in (a, e)
+      | Ref e -> Ref (aux depth map e)
+      | Read e -> Ref (aux depth map e)
+      | Assign (e1,e2) -> Assign (aux depth map e1, aux depth map e2)
+    in (stable, e)
   in aux 0 VarMap.empty e
 
 let unannot_and_normalize e = e |> unannot |> normalize_bvs
