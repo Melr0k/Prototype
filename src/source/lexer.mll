@@ -80,6 +80,7 @@ rule token = parse
 | "Nil"   { NIL }
 | "String"{ STRING }
 | "List"  { LIST }
+| "Ref"   { TREF }
 | "("     { LPAREN }
 | ")"     { RPAREN }
 | "{"     { LBRACE }
