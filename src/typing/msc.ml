@@ -167,7 +167,7 @@ let convert_to_msc ~legacy bvars ast =
   let aux expr_var_map ast =
     let rec to_defs_and_a expr_var_map (_, e as ast) =
       let uast = Ast.unannot_and_normalize ast in
-      if ExprMap.mem uast expr_var_map && (fst uast) (* stable ? *)
+      if ExprMap.mem uast expr_var_map && (fst uast) (* stable = share type ? *)
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))

@@ -73,11 +73,15 @@ let warning pos msg =
     ("Warning" |> colorify_l [Yellow] ~reset:None) pos msg cli_reset
 
 let error pos msg =
-  let pos = List.fold_left (
-    fun acc pos ->
-    Format.asprintf "%s %s" acc (Position.string_of_pos pos)
-  ) "" pos in
-  Format.printf "%s:%s\t%s%s\n"
+  let pos =
+    if pos = []
+    then "[empty pos]"
+    else List.fold_left (
+             fun acc pos ->
+             Format.asprintf "%s %s" acc (Position.string_of_pos pos)
+           ) "" pos
+  in
+  Format.printf "%s: %s %s%s\n"
     ("Error" |> colorify Red ~reset:None) pos msg cli_reset
 
 let log_enabled = ref false
