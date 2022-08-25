@@ -77,7 +77,7 @@ let translate py_ast =
     let rec aux n = function
       | []   , []    -> Ast.(Const EmptyRecord) |> annot loc
       | x::xl, a::al ->
-         Ast.RecordUpdate (a, x, Some (aux (n+1) (xl, al))) |> annot loc
+         Ast.RecordUpdate (aux (n+1) (xl, al), x, Some a) |> annot loc
       | _, [] | [], _ ->
          SyntaxError (loc, fun_args_error f
                              (List.length varl)

@@ -36,6 +36,7 @@ type ('a, 'typ, 'v) ast =
   | Let of 'v * ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
+  (* RecordUpdate( ... (RecordUpdate(emptyrecord,x,Some xv),y,Some yv) ... ) *)
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
   | Ref of ('a, 'typ, 'v) t
   | Read of ('a, 'typ, 'v) t
