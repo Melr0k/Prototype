@@ -11,7 +11,7 @@ let fun_args_error f nb giv =
   Printf.sprintf "Wrong number of arguments given to %s: \
                   expected %d arguments, given %d." f nb giv
 
-let py_to_source py_ast =
+let translate py_ast =
   let module Py_env = Map.Make(String) in
   (* functions → their arguments
      or variables → is it a ref ? *)
@@ -78,10 +78,10 @@ let py_to_source py_ast =
       | []   , []    -> Ast.(Const EmptyRecord) |> annot loc
       | x::xl, a::al ->
          Ast.RecordUpdate (a, x, Some (aux (n+1) (xl, al))) |> annot loc
-      | _, [] ->
-         SyntaxError (loc, fun_args_error f (List.length varl + n) n) |> raise
-      | [], _ ->
-         SyntaxError (loc, fun_args_error f n (List.length astl + n)) |> raise
+      | _, [] | [], _ ->
+         SyntaxError (loc, fun_args_error f
+                             (List.length varl)
+                             (List.length astl)) |> raise
     in
     aux 0 (varl, astl)
   in
@@ -335,25 +335,10 @@ let py_to_source py_ast =
     Py_env.(empty, empty)
     py_ast
 
-let main f =
-  try
-    let py_ast : Py_ast.file =
-      match f with
-      | `Py_file fn -> parse_py_file fn
-      | `Py_string str -> parse_py_string str
-    in
-    Printf.printf "%s\n%s\n%!" ("File parsed:" |> Utils.colorify Green)
-      Py_ast.(show_file py_ast);
-    Printf.printf "%s\n%s\n%!" ("File translated:" |> Utils.colorify Green)
-      (py_to_source py_ast |> Ast.show_parser_program);
-  with
-  | SyntaxError (pos, msg) ->
-     Format.fprintf !err_fmt "%s\nSyntax error: %s\n"
-       (Position.string_of_pos pos) msg
-  | Undefined (pos, var) ->
-     Format.fprintf !err_fmt "%s\nName error: Undefined variable %s.\n%!"
-       (Position.string_of_pos pos) var
-  | e ->
-     let msg = Printexc.to_string e
-     and stack = Printexc.get_backtrace () in
-     Format.fprintf !err_fmt "Uncaught exception: %s%s\n%!" msg stack
+let translate_input p =
+  let py_ast : Py_ast.file =
+    match p with
+    | `File fn -> parse_py_file fn
+    | `String str -> parse_py_string str
+  in
+  translate py_ast

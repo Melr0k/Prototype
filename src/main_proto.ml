@@ -131,15 +131,25 @@ let main f =
       match f with
       | `File fn -> parse_program_file fn
       | `String s -> parse_program_string s
+      | `Python p -> Py_to_source.translate_input p
     in
     type_check_program ast print_result print_logs print_ill_typed
   with
+  (* Source *)
   | Ast.LexicalError(pos, msg) ->
      Format.fprintf !err_fmt "Lexical error at position %d, %s\n%!" pos msg
   | Ast.SyntaxError (spos, msg) ->
      Format.fprintf !err_fmt "%s, %s\n%!" spos msg
   | Ast.UndefinedSymbol s ->
      Format.fprintf  !err_fmt "Error: undefined symbol `%s'\n%!" s
+  (* Python *)
+  | Py_to_source.SyntaxError (pos, msg) ->
+     Format.fprintf !err_fmt "%s\nSyntax error: %s\n"
+       (Position.string_of_pos pos) msg
+  | Py_to_source.Undefined (pos, var) ->
+     Format.fprintf !err_fmt "%s\nName error: Undefined variable %s.\n%!"
+       (Position.string_of_pos pos) var
+  (* other *)
   | e ->
      let msg = Printexc.to_string e
      and stack = Printexc.get_backtrace () in
