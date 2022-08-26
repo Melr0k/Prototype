@@ -57,6 +57,19 @@ let translate py_ast =
             | _ -> aux allow l (* Scall case left... *)
     in aux allow l
   in
+  let rec has_return = function
+    | [] -> false
+    | d::l ->
+       match d with
+       | Py_ast.Dimport _ | Py_ast.Ddef _ -> has_return l
+       | Py_ast.Dstmt s ->
+          begin match s.stmt_desc with
+          | Py_ast.Sif (_, e1, e2) -> has_return e1 || has_return e2
+          | Py_ast.Sreturn _ -> true
+          | Py_ast.Sfor (_, _, b) | Py_ast.Swhile (_, b) -> has_return b
+          | _ -> false
+          end || has_return l
+  in
 
   let rec make_lambda args body : Ast.parser_expr =
     (* build the arguments of Ast.Lambda with n arguments:
@@ -224,12 +237,16 @@ let translate py_ast =
          begin match s.stmt_desc with
          | Py_ast.Sif (t, e1, e2) ->
             let e0, t = treat_stmt_if_test env t in
-            `Instr ( env
-                   , Ast.Ite ( e0, t
-                             , treat_uni_decl ~topl env e1
-                             , treat_uni_decl ~topl env e2 )
-                     |> annot s.stmt_loc
-                   , annot s.stmt_loc)
+            let ite = Ast.Ite ( e0, t
+                              , treat_uni_decl ~topl env e1
+                              , treat_uni_decl ~topl env e2 )
+                      |> annot s.stmt_loc
+            in
+            if not topl || has_return e1 || has_return e2
+            then `Val ite
+                  (* We suppose "one if branch contains return" → "each branch
+                     have a return" *)
+            else `Instr (env, ite, annot s.stmt_loc)
          | Py_ast.Sreturn _ -> (* will fail if topl *)
             `Val (treat_stmt env s) (* return = ignore l *)
          | Py_ast.Sassign (v, e) ->
@@ -244,7 +261,6 @@ let translate py_ast =
                    raise (SyntaxError (s.stmt_loc,
                                        Printf.sprintf
                                          "var %s not ref but assigned" v))
-                   (*assert false (* x defined, not ref, but assigned ! *)*)
             else
               let v_is_ref = Py_env.find v venv in
               let e = treat_expr env e
@@ -273,6 +289,7 @@ let translate py_ast =
           else Ast.Let ("_", e, treat_uni_decl ~topl env l)
                |> fann
        | `Val v -> v
+
   (* vars = already declared variables
    * venv = variables in scope mapped to "is ref?"
    * fenv = declared functions with their named arguments
