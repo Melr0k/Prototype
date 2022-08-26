@@ -106,12 +106,15 @@ let translate py_ast =
            , fold_left fold_def [] body)
     in
     (* for all v in vassign, assoc with fan value & return env *)
-    ( vars
-    , List.fold_left
-        (fun acc v -> Py_env.add v (fan ~allow:true v body) acc)
-        venv
+    let vars, venv =
+      List.fold_left
+        (fun (va,ve) v ->
+          Py_set.remove v va
+          , Py_env.add v (fan ~allow:true v body) ve)
+        (vars, venv)
         vassign
-    , fenv )
+    in
+    (vars, venv, fenv)
   in
 
   (* /!\ TODO: Theses functions are not defined in source language /!\ *)
@@ -204,8 +207,9 @@ let translate py_ast =
     let vars,(venv,fenv) = Py_set.add fid vars
                          , Py_env.( add fid false venv
                                   , add fid args fenv) in (* fid *)
-    let vars,venv,fenv = upd_env (vars,venv,fenv) (args,body) in (* args body *)
-    let b = (treat_uni_decl (vars, venv, fenv) body (* ~topl:false *)
+    let f_vars,f_venv,f_fenv =
+      upd_env (vars,venv,fenv) (args,body) in (* args body *)
+    let b = (treat_uni_decl (f_vars, f_venv, f_fenv) body (* ~topl:false *)
              |> make_lambda args) (* unfold args *)
     in (vars, venv, fenv)
      , Ast.Lambda (Ast.Unnanoted, argn, b) |> annot pos
@@ -236,7 +240,11 @@ let translate py_ast =
                                            , treat_expr env e))
                                |> annot s.stmt_loc
                              , annot s.stmt_loc)
-                 else assert false (* x defined, not ref, but assigned ! *)
+                 else
+                   raise (SyntaxError (s.stmt_loc,
+                                       Printf.sprintf
+                                         "var %s not ref but assigned" v))
+                   (*assert false (* x defined, not ref, but assigned ! *)*)
             else
               let v_is_ref = Py_env.find v venv in
               let e = treat_expr env e
@@ -293,9 +301,4 @@ let translate_input p =
     | `File fn -> parse_py_file fn
     | `String str -> parse_py_string str
   in
-  let t = translate py_ast in
-  Printf.printf "%s\n%s\n%!" ("Python file parsed:" |> Utils.colorify Green)
-    Py_ast.(show_file py_ast);
-  Printf.printf "%s\n%s\n%!" ("Python file translated:" |> Utils.colorify Green)
-    (Ast.show_parser_program t);
-  t
+  translate py_ast

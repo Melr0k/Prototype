@@ -7,7 +7,7 @@ let file_by_lang filename =
   then `Python (`File filename)
   else `File filename
 
-let ml_test = testdir ^ "test1.ml"
+let ml_test = testdir ^ "test1.py"
 let () =
   let fn = ref ml_test in
   if Array.length Sys.argv > 1 then fn := Sys.argv.(1) ;
