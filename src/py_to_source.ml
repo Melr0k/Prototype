@@ -292,7 +292,8 @@ let translate py_ast =
           raise (SyntaxError (pos, "Return outside function"))
   in
   treat_top_decl
-    ( upd_env (Py_set.empty, Py_env.empty, Py_env.empty) ([], py_ast) )
+    ( upd_env (* load toplevel variables in venv *)
+        (Py_set.empty, Py_env.empty, Py_env.empty) ([], py_ast) )
     py_ast
 
 let translate_input p =
