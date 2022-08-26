@@ -50,8 +50,8 @@ and stmt_desc =
 and block = decl list
 
 and decl =
-  | Dimport of ident * ident list
-  | Ddef  of ident * ident list * block
+  | Dimport of Position.t * ident * ident list
+  | Ddef  of Position.t * ident * ident list * block
   | Dstmt of stmt
 
 type file = block

@@ -54,9 +54,9 @@ and stmt_desc =
 and block = decl list
 
 and decl =
-  | Dimport of (*TODO Position.t*) ident * ident list
-  | Ddef  of (*TODO Position.t*) ident * ident list * block
-  | Dstmt of (*TODO Position.t*) stmt
+  | Dimport of (Position.t [@opaque]) * ident * ident list
+  | Ddef  of (Position.t [@opaque]) * ident * ident list * block
+  | Dstmt of stmt
 [@@deriving show]
 
 type file = block

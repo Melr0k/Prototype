@@ -59,12 +59,12 @@ decl:
 
 import:
 | FROM m=ident IMPORT l=separated_list(COMMA, ident) NEWLINE
-  { Dimport (m, l) }
+  { Dimport ((floc $startpos $endpos), m, l) }
 
 def:
 | DEF f = ident LEFTPAR x = separated_list(COMMA, ident) RIGHTPAR
   COLON NEWLINE BEGIN l=nonempty_list(stmt) END
-    { Ddef (f, x, l) }
+    { Ddef ((floc $startpos $endpos), f, x, l) }
 ;
 
 expr:

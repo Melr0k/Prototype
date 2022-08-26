@@ -38,12 +38,12 @@ let translate py_ast =
       | [] -> false
       | s::l ->
          match s with (* 🤔 can we use a monad here ? *)
-         | Py_ast.Dimport (_, idl) ->
+         | Py_ast.Dimport (_, _, idl) ->
             begin match find_v_opt idl with
             | Some _ -> false (* override *)
             | None -> aux allow l
             end
-         | Py_ast.Ddef (fid, _, _) -> (* we don't have the `global` directive *)
+         | Py_ast.Ddef (_, fid, _, _) -> (* `global` not supported yet *)
             if fid = v then false else aux allow l
          | Py_ast.Dstmt s ->
             match s.stmt_desc with
@@ -89,8 +89,8 @@ let translate py_ast =
   let upd_env (vars, venv, fenv) (args, body) =
     (* variable's scope in python is weird, but it's ok *)
     let rec get_def = function
-      | Py_ast.Dimport (_, idl) -> idl
-      | Py_ast.Ddef (fid, _, _) -> [fid]
+      | Py_ast.Dimport (_, _, idl) -> idl
+      | Py_ast.Ddef (_, fid, _, _) -> [fid]
       | Py_ast.Dstmt s ->
          match s.stmt_desc with
          | Py_ast.Sassign (id, _) -> [id]
@@ -200,7 +200,7 @@ let translate py_ast =
       | Py_ast.Sset _ -> failwith "Set not supported yet."
       | Py_ast.Sbreak -> failwith "Break not supported yet."
     in aux s.stmt_desc |> annot s.stmt_loc
-  and treat_decl_ddef (vars, venv, fenv) (fid, args, body) = (* Py_ast.Ddef *)
+  and treat_decl_ddef (vars,venv,fenv) (pos,fid,args,body) = (* Py_ast.Ddef *)
     let vars,(venv,fenv) = Py_set.add fid vars
                          , Py_env.( add fid false venv
                                   , add fid args fenv) in (* fid *)
@@ -208,14 +208,14 @@ let translate py_ast =
     let b = (treat_uni_decl (vars, venv, fenv) body (* ~topl:false *)
              |> make_lambda args) (* unfold args *)
     in (vars, venv, fenv)
-     , Ast.Lambda (Ast.Unnanoted, argn, b) |> dannot
+     , Ast.Lambda (Ast.Unnanoted, argn, b) |> annot pos
   and treat_abs_decl ~topl (vars, venv, fenv as env) = function
       | Py_ast.Dimport _ ->
          Format.fprintf !wrn_fmt "Warning: import not supported yet.\n%!";
          `Pass
-      | Py_ast.Ddef (fid, args, body) ->
-         let env, func = treat_decl_ddef env (fid, args, body) in
-         `Let (env, fid, func, dannot)
+      | Py_ast.Ddef (pos, fid, args, body) ->
+         let env, func = treat_decl_ddef env (pos, fid, args, body) in
+         `Let (env, fid, func, annot pos)
       | Py_ast.Dstmt s ->
          begin match s.stmt_desc with
          | Py_ast.Sif (t, e1, e2) ->
@@ -293,4 +293,9 @@ let translate_input p =
     | `File fn -> parse_py_file fn
     | `String str -> parse_py_string str
   in
-  translate py_ast
+  let t = translate py_ast in
+  Printf.printf "%s\n%s\n%!" ("Python file parsed:" |> Utils.colorify Green)
+    Py_ast.(show_file py_ast);
+  Printf.printf "%s\n%s\n%!" ("Python file translated:" |> Utils.colorify Green)
+    (Ast.show_parser_program t);
+  t
