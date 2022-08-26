@@ -13,6 +13,7 @@ let fun_args_error f nb giv =
 
 let translate py_ast =
   let module Py_env = Map.Make(String) in
+  let module Py_set = Set.Make(String) in
   (* functions → their arguments
      or variables → is it a ref ? *)
 
@@ -85,7 +86,7 @@ let translate py_ast =
     in
     aux 0 (varl, astl)
   in
-  let upd_env (venv, fenv) (args, body) =
+  let upd_env (vars, venv, fenv) (args, body) =
     (* variable's scope in python is weird, but it's ok *)
     let rec get_def = function
       | Py_ast.Dimport (_, idl) -> idl
@@ -95,19 +96,25 @@ let translate py_ast =
          | Py_ast.Sassign (id, _) -> [id]
          | _ -> [] (* ignore definitions in if blocks: it's another scope *)
     and fold_def = fun acc s -> get_def s @ acc in
-    let venv, vassign =
-      List.( fold_left (fun acc x -> Py_env.add x false acc) venv args
+    let (vars, venv), vassign =
+      List.( fold_left
+               (fun (vars,venv) x ->
+                 Py_set.add x vars ,
+                 Py_env.add x false venv (* TODO suppose args ref…? *))
+               (vars,venv)
+               args
            , fold_left fold_def [] body)
     in
     (* for all v in vassign, assoc with fan value & return env *)
-    ( List.fold_left
+    ( vars
+    , List.fold_left
         (fun acc v -> Py_env.add v (fan ~allow:true v body) acc)
         venv
         vassign
     , fenv )
   in
 
-  (* /!\ Theses functions are not defined in source language /!\ *)
+  (* /!\ TODO: Theses functions are not defined in source language /!\ *)
   let binop b =
     Ast.Var (match b with
              | Py_ast.Badd -> "+"
@@ -130,14 +137,16 @@ let translate py_ast =
              | Py_ast.Unot -> "!"
       ) |> dannot
   in
-  let rec treat_expr (venv, fenv as env) (e:Py_ast.expr) =
+  let rec treat_expr (vars, venv, fenv as env) (e:Py_ast.expr) =
     let aux = function
       | Py_ast.Enone -> Ast.(Const Unit)
       | Py_ast.Ebool b -> Ast.(Const (Bool b))
       | Py_ast.Eint istr -> Ast.(Const (Int (int_of_string istr)))
       | Py_ast.Estring str -> Ast.(Const (String str))
       | Py_ast.Eident id ->
-         if Py_env.find_opt id venv = Some true
+         if Py_set.find_opt id vars = None
+         then raise (Undefined (e.expr_loc, id))
+         else if Py_env.find_opt id venv = Some true
          then Ast.(Read (Var id |> annot e.expr_loc))
          else Ast.(Var id)
       | Py_ast.Ebinop (b, e1, e2) ->
@@ -153,7 +162,7 @@ let translate py_ast =
          in
          Ast.(App ( Var fid |> annot e.expr_loc
                   , List.fold_left
-                      (fun acc e -> treat_expr (venv, fenv) e ::acc)
+                      (fun acc e -> treat_expr (vars, venv, fenv) e ::acc)
                       []
                       args
                     |> List.rev
@@ -180,12 +189,10 @@ let translate py_ast =
     | _ -> ( treat_expr env t
            , TBase TTrue )
   in
-  let rec treat_stmt ?(topl=false) env (s:Py_ast.stmt) =
+  let rec treat_stmt env (s:Py_ast.stmt) =
     let aux = function
       | Py_ast.Sif _ | Py_ast.Sassign _ ->
          assert false (* should be treated in upper levels in the AST *)
-      | Py_ast.Sreturn _ when topl ->
-         SyntaxError (s.stmt_loc, "Return outside function") |> raise
       | Py_ast.Sreturn e | Py_ast.Seval e ->
          treat_expr env e |> snd
       | Py_ast.Swhile _ -> failwith "While not supported yet."
@@ -193,146 +200,91 @@ let translate py_ast =
       | Py_ast.Sset _ -> failwith "Set not supported yet."
       | Py_ast.Sbreak -> failwith "Break not supported yet."
     in aux s.stmt_desc |> annot s.stmt_loc
-  and treat_decl_ddef (venv, fenv) (fid, args, body) = (* Py_ast.Ddef *)
-    let venv',fenv' = Py_env.(add fid false venv, add fid args fenv) in
-    let b = (treat_uni_decl
-               ( List.fold_left
-                   (fun ve e ->             (* We suppose *)
-                     Py_env.add e true ve)  (* args to be *)
-                   venv'                    (* ref vars ? *)
-                   args
-               , fenv' ) body
-             |> make_lambda args)
-    in (venv', fenv'), b
-  and treat_uni_decl ?(topl=false) (venv, fenv as env)
-      : Py_ast.file -> Ast.parser_expr =
-    (* gives back an ast (not a list of ast) *)
-    let aux next = function
+  and treat_decl_ddef (vars, venv, fenv) (fid, args, body) = (* Py_ast.Ddef *)
+    let vars,(venv,fenv) = Py_set.add fid vars
+                         , Py_env.( add fid false venv
+                                  , add fid args fenv) in (* fid *)
+    let vars,venv,fenv = upd_env (vars,venv,fenv) (args,body) in (* args body *)
+    let b = (treat_uni_decl (vars, venv, fenv) body (* ~topl:false *)
+             |> make_lambda args) (* unfold args *)
+    in (vars, venv, fenv)
+     , Ast.Lambda (Ast.Unnanoted, argn, b) |> dannot
+  and treat_abs_decl ~topl (vars, venv, fenv as env) = function
       | Py_ast.Dimport _ ->
          Format.fprintf !wrn_fmt "Warning: import not supported yet.\n%!";
          `Pass
       | Py_ast.Ddef (fid, args, body) ->
-         let env, b =
-           treat_decl_ddef (upd_env env (args,body)) (fid, args, body) in
-         `Let (env, fid, b, dannot)
+         let env, func = treat_decl_ddef env (fid, args, body) in
+         `Let (env, fid, func, dannot)
       | Py_ast.Dstmt s ->
          begin match s.stmt_desc with
          | Py_ast.Sif (t, e1, e2) ->
-            let (e0, t) = treat_stmt_if_test env t in
+            let e0, t = treat_stmt_if_test env t in
             `Instr ( env
                    , Ast.Ite ( e0, t
-                               , treat_uni_decl ~topl env e1
-                               , treat_uni_decl ~topl env e2 )
-                     |> annot s.stmt_loc )
-         | Py_ast.Sreturn _ ->
-            `Val (treat_stmt ~topl env s) (* return = ignore l *)
+                             , treat_uni_decl ~topl env e1
+                             , treat_uni_decl ~topl env e2 )
+                     |> annot s.stmt_loc
+                   , annot s.stmt_loc)
+         | Py_ast.Sreturn _ -> (* will fail if topl *)
+            `Val (treat_stmt env s) (* return = ignore l *)
          | Py_ast.Sassign (v, e) ->
-            if Py_env.mem v venv (* v ∈ Γ *)
+            if Py_set.mem v vars (* v ∈ vars → v ∈ venv *)
             then if Py_env.find v venv (* v : Ref *)
                  then `Instr ( env
-                             , Ast.(Assign ( Var v |> dannot
+                             , Ast.(Assign ( Var v |> annot s.stmt_loc
                                            , treat_expr env e))
-                               |> annot s.stmt_loc )
-                 else begin
-                     (* * )
-                       Format.fprintf !wrn_fmt
-                       "%s defined, not ref, but assigned. Should occur \
-                        only once, and python probably don't accept it.\n%!" v;
-                     ( * *)
-                     let v_is_ref = fan v next in
-                     let e1 = treat_expr env e
-                     in `Let (env, v, (if v_is_ref
-                                       then Ast.Ref e1 |> dannot
-                                       else e1), annot s.stmt_loc)
-                   end
+                               |> annot s.stmt_loc
+                             , annot s.stmt_loc)
+                 else assert false (* x defined, not ref, but assigned ! *)
             else
-              let v_is_ref = fan v next in
-              let e1 = treat_expr env e
-              in `Let ( (Py_env.add v v_is_ref venv, fenv)
+              let v_is_ref = Py_env.find v venv in
+              let e = treat_expr env e
+              in `Let ( (Py_set.add v vars, venv, fenv)
                       , v
                       , (if v_is_ref
-                         then Ast.Ref e1 |> dannot
-                         else e1)
+                         then Ast.Ref e |> annot s.stmt_loc
+                         else e)
                       , annot s.stmt_loc )
          | _ ->
             `Instr ( env
-                   , treat_stmt ~topl env s )
+                   , treat_stmt env s
+                   , annot s.stmt_loc)
          end
-    in
-    function
+  and treat_uni_decl ?(topl=false) env : Py_ast.file -> Ast.parser_expr =
+    function (* gives back a unique ast (not a list) *)
     | [] -> (Ast.Const Ast.Unit |> dannot)
     | x::l ->
-       match aux l x with
+       match treat_abs_decl ~topl env x with
        | `Pass -> treat_uni_decl ~topl env l
        | `Let (env, v, e, fann) ->
           Ast.Let (v, e, treat_uni_decl ~topl env l) |> fann
-       | `Instr (env, e) ->
+       | `Instr (env, e, fann) ->
           if l=[] && topl
           then e
-          else Ast.Let ("_", e, treat_uni_decl ~topl env l) |> dannot
+          else Ast.Let ("_", e, treat_uni_decl ~topl env l)
+               |> fann
        | `Val v -> v
-  and treat_decl (venv, fenv as env : (bool Py_env.t * string list Py_env.t))
-      : Py_ast.file -> Ast.parser_program
+  (* vars = already declared variables
+   * venv = variables in scope mapped to "is ref?"
+   * fenv = declared functions with their named arguments
+   * For more see upd_env. *)
+  and treat_top_decl env : Py_ast.file -> Ast.parser_program
     = function (* at toplevel *)
     | [] -> []
     | decl::l ->
-       match decl with
-       | Py_ast.Dimport _ ->
-          Format.fprintf !wrn_fmt "Warning: import not supported yet\n%!";
-          treat_decl env l
-       | Py_ast.Ddef (fid, args, body) ->
-          let env', b = treat_decl_ddef env (fid, args, body) in
-          Ast.Definition (false, (fid, Ast.Lambda (Ast.Unnanoted, argn, b)
-                                       |> dannot))
-          :: treat_decl env' l
-       | Py_ast.Dstmt s ->
-          begin match s.stmt_desc with
-          | Py_ast.Sif (t, e1, e2) ->
-             let (e0, t) = treat_stmt_if_test env t in
-             Ast.Definition
-               (false, ( "_"
-                       , Ast.Ite ( e0, t
-                                  , treat_uni_decl ~topl:true env e1
-                                  , treat_uni_decl ~topl:true env e2 )
-                         |> annot s.stmt_loc))
-             :: treat_decl env l
-          | Py_ast.Sassign (v,e) ->
-             let (venv, v, e) =
-               if Py_env.mem v venv (* v ∈ Γ *)
-               then if Py_env.find v venv (* v : Ref *)
-                    then venv
-                       , "_"
-                       , Ast.(Assign ( Var v |> dannot
-                                     , treat_expr env e))
-                    else assert false (* x defined, not ref, but assigned ! *)
-               else
-                 let v_is_ref = fan v l in
-                 let venv = Py_env.add v v_is_ref venv in
-                 let e = treat_expr env e
-                 in venv
-                  , v
-                  , if v_is_ref
-                    then Ast.Ref e
-                    else snd e
-             in
-             Ast.Definition (false, (v, annot s.stmt_loc e))
-             :: treat_decl (venv,fenv) l
-          | _ -> Ast.Definition (false, ("_", treat_stmt ~topl:true env s))
-                 :: treat_decl env l
-          end
+       match treat_abs_decl ~topl:true env decl with
+       | `Pass -> treat_top_decl env l
+       | `Let (env, v, e, _) ->
+          Ast.Definition (false, (v, e)) :: treat_top_decl env l
+       | `Instr (env, e, _) ->
+          Ast.Definition (false, ("_", e)) :: treat_top_decl env l
+       | `Val v ->
+          let pos = snd (fst v) in
+          raise (SyntaxError (pos, "Return outside function"))
   in
-  (* motivations for not unifying treat_uni_decl and treat_decl with some
-     toplevel:bool, same for stmt cases managed in theses two firsts functions:
-
-     1. toplevel imply differents types (and constructors) for decl functions:
-        - treat_uni_decl : 'env -> Py_ast.file -> Ast.parser_expr
-        - treat_decl : 'env -> Py_ast.file -> Ast.parser_program
-     2. the variable used in Ast.Definition depends on the stmt (assign or not),
-        if treat_stmt takes care of it it should have a different return type
-        only for 1 case… and it needs the next expressions for the forward
-        analysis, so 1 more argument only for one case. Same for return. *)
-  treat_decl
-    Py_env.(empty, empty)
+  treat_top_decl
+    ( upd_env (Py_set.empty, Py_env.empty, Py_env.empty) ([], py_ast) )
     py_ast
 
 let translate_input p =
