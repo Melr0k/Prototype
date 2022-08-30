@@ -48,6 +48,7 @@ let map ef af =
 let map_e ef af = map ef af |> fst
 let map_a ef af = map ef af |> snd
 
+
 let fold ef af =
   let rec aux_a a =
     begin match a with
@@ -67,7 +68,6 @@ let fold ef af =
 let fold_e ef af = fold ef af |> fst
 let fold_a ef af = fold ef af |> snd
 
-
 let free_vars =
   let f1 e acc =
     let acc = List.fold_left VarSet.union VarSet.empty acc in
@@ -78,7 +78,6 @@ let free_vars =
   let f2 a acc =
     let acc = List.fold_left VarSet.union VarSet.empty acc in
     match a with
-    (* TODO verify this code *)
     | Lambda (_, _, v, _) -> VarSet.remove v acc
     | Projection (_, v) | RecordUpdate (v, _, None) -> VarSet.add v acc
     | Ite (v, _, x1, x2) -> VarSet.add v acc |> VarSet.add x1 |> VarSet.add x2
@@ -90,6 +89,7 @@ let free_vars =
 
 let fv_a = free_vars |> fst
 let fv_e = free_vars |> snd
+
 
 let bound_vars =
   let f1 e acc =
@@ -200,7 +200,7 @@ let convert_to_msc ~legacy bvars ast =
            let name = Variable.get_name v in
            let (defs1, expr_var_map, x) = to_defs_and_x ~name expr_var_map e1 in
            let e2 =
-             if fst uast (* stable → can copy the expression *)
+             if fst e1 |> snd (* e1 stable → can copy the expression *)
              then Ast.substitute e2 v e1 (* Substitute v by e1 in e2 *)
              else e2 in
            let (defs2, expr_var_map, y) = to_defs_and_x expr_var_map e2 in

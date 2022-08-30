@@ -271,6 +271,7 @@ let unannot_and_normalize e = e |> unannot |> normalize_bvs
     end
   | Debug (_, e) -> fv e*)
 
+(** substitute v by (annot', expr') in aexpr **)
 let substitute aexpr v (annot', expr') =
   let rec aux (_, expr) =
     let expr = match expr with
@@ -291,7 +292,9 @@ let substitute aexpr v (annot', expr') =
            | Some e2 -> Some (aux e2)
            | None -> None
          in RecordUpdate (aux e1, f, e2)
-      | _ -> failwith "TODO substitute ref read assign"
+      | Ref e -> Ref (aux e)
+      | Read e -> Read (aux e)
+      | Assign (e1, e2) -> Assign (aux e1, aux e2)
     in
     (annot', expr)
   in aux aexpr
