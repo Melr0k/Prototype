@@ -338,12 +338,7 @@ and pp_type_annot fa fmt = function
   | Unnanoted -> Format.fprintf fmt ""
   | ADomain t -> Format.fprintf fmt " <@[%a@]>" fa t
   | AArrow t  -> Format.fprintf fmt " <@[%a@]>" fa t
-and pp_ast (fmt_a:Format.formatter->'a->unit)
-           (fmt_typ:Format.formatter->'typ->unit)
-           (fmt_v:Format.formatter->'v->unit)
-           (fmt:Format.formatter)
-         : ('a, 'typ, 'v) ast -> unit
-  = function
+and pp_ast fmt_a fmt_typ fmt_v fmt = function
   | Abstract t -> Format.fprintf fmt "%a" fmt_typ t
   | Const c -> Format.fprintf fmt "%a" pp_const c
   | Var v -> Format.fprintf fmt "%a" fmt_v v
@@ -384,7 +379,7 @@ and pp_ast (fmt_a:Format.formatter->'a->unit)
 let pp_varname fmt s = Format.fprintf fmt "%s" s
 and pp_annotation fmt _ = Format.fprintf fmt "[opaque]"
 
-let pp_parser_element fmt :parser_element->unit = function
+let pp_parser_element fmt = function
   | Definition (_,(fid,(_,ast))) ->
      Format.fprintf fmt "@[<hov 2>Let %s =@ %a@];;"
        (*if b then "⊤" else "⊥"*) fid
