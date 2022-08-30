@@ -5,7 +5,7 @@
   ;num
   )
  ;(preprocess
- ; (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq))
+ ; (pps ppx_deriving.ord ppx_deriving.eq))
  (modules
   (:standard
    \
