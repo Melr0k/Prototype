@@ -12,7 +12,6 @@ type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
   | TString | TList | TRef
-[@@deriving show]
 
 type type_regexp =
   | ReEpsilon | ReEmpty
@@ -20,7 +19,6 @@ type type_regexp =
   | ReSeq of type_regexp * type_regexp
   | ReStar of type_regexp
   | ReAlt of type_regexp * type_regexp
-[@@deriving show]
 
 and type_expr =
   | TVar of string
@@ -34,7 +32,6 @@ and type_expr =
   | TCap of type_expr * type_expr
   | TDiff of type_expr * type_expr
   | TNeg of type_expr
-[@@deriving show]
 
 type type_env = node StrMap.t (* User-defined types *) * StrSet.t (* Atoms *)
 type var_type_env = typ StrMap.t (* Var types *)
@@ -528,3 +525,62 @@ let share_jokerized_arrows lst =
   let jokers = lst |> List.map extract_jokerized_arrows in
   lst |> List.map
            (fun t -> List.fold_left add_joker_branch t jokers)
+
+
+(* Pretty-printers*)
+
+let rec pp_type_base fmt = function
+  | TInt (lb, ub) ->
+     Format.fprintf fmt "Int(%s,@ %s)"
+       (match lb with Some l -> string_of_int l | None -> "-infty")
+       (match ub with Some u -> string_of_int u | None -> "infty")
+  | TSChar c   -> Format.fprintf fmt "Char %c" c
+  | TSString s -> Format.fprintf fmt "String %s" s
+  | TBool      -> Format.fprintf fmt "Bool"
+  | TTrue      -> Format.fprintf fmt "Truthy"
+  | TFalse     -> Format.fprintf fmt "Falsy"
+  | TUnit      -> Format.fprintf fmt "Unit"
+  | TChar      -> Format.fprintf fmt "Char"
+  | TAny       -> Format.fprintf fmt "Any"
+  | TEmpty     -> Format.fprintf fmt "Empty"
+  | TNil       -> Format.fprintf fmt "Nil"
+  | TString    -> Format.fprintf fmt "String"
+  | TList      -> Format.fprintf fmt "List"
+  | TRef       -> Format.fprintf fmt "Ref"
+and pp_type_regexp fmt = function
+  | ReEpsilon -> Format.fprintf fmt "epsilon"
+  | ReEmpty -> Format.fprintf fmt "empty"
+  | ReType t -> Format.fprintf fmt "(%a)" pp_type_expr t
+  | ReSeq (r1, r2) ->
+     Format.fprintf fmt "seq(%a,@ %a)" pp_type_regexp r1 pp_type_regexp r2
+  | ReStar r -> Format.fprintf fmt "%a*@ " pp_type_regexp r
+  | ReAlt (r1, r2) ->
+     Format.fprintf fmt "Alt(%a,@ %a)" pp_type_regexp r1 pp_type_regexp r2
+
+and pp_type_expr fmt = function
+  | TVar s -> Format.fprintf fmt "%s" s
+  | TBase b -> pp_type_base fmt b
+  | TCustom s -> Format.fprintf fmt "%s" s
+  | TPair (t1, t2) ->
+     Format.fprintf fmt "@[<hov 1>(%a,@ %a)@]" pp_type_expr t1 pp_type_expr t2
+  | TRecord (b, stbl) ->
+     List.fold_left
+       (fun () (s,t,b) ->
+         Format.fprintf fmt "%s: %s =@ %a;@ " (if b then "true" else "false") s
+           pp_type_expr t)
+       (Format.fprintf fmt "@[<hov 1>{%s " (if b then "true" else "false"))
+       stbl;
+     Format.fprintf fmt "}@]"
+  | TSList t_reg -> pp_type_regexp fmt t_reg
+  | TArrow (t1, t2) ->
+     Format.fprintf fmt "@[<hov 1>%a ->@ %a@]" pp_type_expr t1 pp_type_expr t2
+  | TCup (t1, t2) ->
+     Format.fprintf fmt "@[<hov 1>(%a |@ %a)@]" pp_type_expr t1 pp_type_expr t2
+  | TCap (t1, t2) ->
+     Format.fprintf fmt "@[<hov 1>(%a &@ %a)@]" pp_type_expr t1 pp_type_expr t2
+  | TDiff (t1, t2) ->
+     Format.fprintf fmt "@[<hov 1>(%a wout @ %a)@]"
+       pp_type_expr t1 pp_type_expr t2
+  | TNeg t -> Format.fprintf fmt "not %a" pp_type_expr t
+
+and show_type_expr t = Format.asprintf "%a" pp_type_expr t

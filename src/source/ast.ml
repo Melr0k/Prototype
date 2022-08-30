@@ -9,7 +9,7 @@ exception UndefinedSymbol of string
 exception LexicalError of int * string
 exception SyntaxError of string * string (* position * msg *)
 
-type varname = string [@@deriving show]
+type varname = string
 type exprid = int
 
 type annotation = exprid Position.located
@@ -22,13 +22,13 @@ type const =
   | Char of char
   | String of string
   | Atom of string
-[@@deriving show, ord]
+[@@deriving ord]
 
 type projection = Fst | Snd | Field of string
-[@@deriving show, ord]
+[@@deriving ord]
 
 type 'typ type_annot = Unnanoted | ADomain of 'typ | AArrow of 'typ
-[@@deriving show, ord]
+[@@deriving ord]
 
 type ('a, 'typ, 'v) ast =
   | Abstract of 'typ
@@ -47,12 +47,11 @@ type ('a, 'typ, 'v) ast =
 (*
   | Seq of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
  *)
-[@@deriving ord, show]
+[@@deriving ord]
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-type parser_expr = (annotation [@opaque], type_expr, varname) t
-[@@deriving show]
+type parser_expr = (annotation       , type_expr, varname   ) t
 type annot_expr  = (annotation * bool, Cduce.typ, Variable.t) t
 type expr        = (bool             , Cduce.typ, Variable.t) t
 
@@ -314,6 +313,92 @@ type parser_element =
   | Definition of (bool * (string * parser_expr))
   | Atoms of string list
   | Types of (string * type_expr) list
-[@@deriving show]
 
-type parser_program = parser_element list [@@deriving show]
+type parser_program = parser_element list
+
+(* Pretty-printers *)
+
+let rec pp_const fmt = function
+  | Unit        -> Format.fprintf fmt "()"
+  | Nil         -> Format.fprintf fmt "`nil"
+  | EmptyRecord -> Format.fprintf fmt "{}"
+  | Bool b      -> Format.fprintf fmt (if b then "true" else "false")
+  | Int i       -> Format.fprintf fmt "%d" i
+  | Char c      -> Format.fprintf fmt "%c" c
+  | String s    -> Format.fprintf fmt "%s" s
+  | Atom a      -> Format.fprintf fmt "%s" a
+and pp_projection fmt = function
+  | Fst -> Format.fprintf fmt "fst"
+  | Snd -> Format.fprintf fmt "snd"
+  | Field s -> Format.fprintf fmt "%s" s
+and pp_type_annot fa fmt = function
+  | Unnanoted -> Format.fprintf fmt ""
+  | ADomain t -> Format.fprintf fmt " <@[%a@]>" fa t
+  | AArrow t  -> Format.fprintf fmt " <@[%a@]>" fa t
+and pp_ast (fmt_a:Format.formatter->'a->unit)
+           (fmt_typ:Format.formatter->'typ->unit)
+           (fmt_v:Format.formatter->'v->unit)
+           (fmt:Format.formatter)
+         : ('a, 'typ, 'v) ast -> unit
+  = function
+  | Abstract t -> Format.fprintf fmt "%a" fmt_typ t
+  | Const c -> Format.fprintf fmt "%a" pp_const c
+  | Var v -> Format.fprintf fmt "%a" fmt_v v
+  | Lambda (ta, v, (_,e)) ->
+     Format.fprintf fmt "@[<v 2>fun%a %a ->@ %a@]"
+       (pp_type_annot fmt_typ) ta fmt_v v (pp_ast fmt_a fmt_typ fmt_v) e
+  | Ite ((_,e), t, (_,e1), (_,e2)) ->
+     Format.fprintf fmt "@[<hov>if@ %a@ is@ %a@\n\
+                         then@[<hov 2>@ %a@]@\n\
+                         else@[<hov 2>@ %a@]@]"
+       (pp_ast fmt_a fmt_typ fmt_v) e fmt_typ t
+       (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
+  | App ((_,e1), (_,e2)) ->
+     Format.fprintf fmt "@[%a@ %a@]"
+       (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
+  | Let (v, (_,e1), (_,e2)) ->
+     Format.fprintf fmt "@[<hov 2>let %a =@ %a@ @]in@\n%a" fmt_v v
+       (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
+  | Pair ((_,e1), (_,e2)) ->
+     Format.fprintf fmt "(@[%a@],@ @[%a@])"
+       (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
+  | Projection (p, (_,e)) ->
+     Format.fprintf fmt "%a.%a"
+       (pp_ast fmt_a fmt_typ fmt_v) e pp_projection p
+  | RecordUpdate ((_,e1), l, None) ->
+     Format.fprintf fmt "{%a; \ %s}"
+       (pp_ast fmt_a fmt_typ fmt_v) e1 l
+  | RecordUpdate ((_,e1), l, Some (_,e2)) ->
+     Format.fprintf fmt "{%a; %s =@ %a}"
+       (pp_ast fmt_a fmt_typ fmt_v) e1 l (pp_ast fmt_a fmt_typ fmt_v) e2
+  | Ref (_,e) ->
+     Format.fprintf fmt "@[<hov 2>ref@ %a@]" (pp_ast fmt_a fmt_typ fmt_v) e
+  | Read (_,e) -> Format.fprintf fmt "!@[%a@]" (pp_ast fmt_a fmt_typ fmt_v) e
+  | Assign ((_,e1), (_,e2)) ->
+     Format.fprintf fmt "@[%a@] :=@ %a"
+       (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
+
+let pp_varname fmt s = Format.fprintf fmt "%s" s
+and pp_annotation fmt _ = Format.fprintf fmt "[opaque]"
+
+let pp_parser_element fmt :parser_element->unit = function
+  | Definition (_,(fid,(_,ast))) ->
+     Format.fprintf fmt "@[<hov 2>Let %s =@ %a@];;"
+       (*if b then "⊤" else "⊥"*) fid
+       (pp_ast pp_annotation pp_type_expr pp_varname) ast
+  | Atoms s -> List.fold_left
+                 (fun () a -> Format.fprintf fmt "@ %s" a)
+                 (Format.fprintf fmt "@[<hov 2>atoms :")
+                 s;
+               Format.fprintf fmt "@]@\n"
+  | Types l -> List.fold_left
+                 (fun () (s,t) -> Format.fprintf fmt "@ (%s :@ %a)"
+                                    s Types_additions.pp_type_expr t)
+                 (Format.fprintf fmt "@[<hov 2>types :")
+                 l;
+               Format.fprintf fmt "@]@\n"
+
+let show_parser_program =
+  List.fold_left
+    (fun str e -> Format.asprintf "%s%a\n" str pp_parser_element e)
+    ""

@@ -112,4 +112,6 @@ val substitute_top_jokers : joker_kind -> typ -> typ -> typ
 
 val share_jokerized_arrows : typ list -> typ list
 
+val pp_type_base : Format.formatter -> type_base -> unit
 val pp_type_expr : Format.formatter -> type_expr -> unit
+val show_type_expr : type_expr -> string

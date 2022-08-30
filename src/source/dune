@@ -7,5 +7,5 @@
  (name source)
  (libraries common pomap)
  (preprocess
-  (pps ppx_deriving.show ppx_deriving.ord))
+  (pps ppx_deriving.ord))
  (modules :standard))

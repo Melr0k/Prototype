@@ -88,9 +88,10 @@ val pp_const : Format.formatter -> const -> unit
 val pp_projection : Format.formatter -> projection -> unit
 val pp_type_annot : (Format.formatter -> 'a -> unit) ->
                     Format.formatter -> 'a type_annot -> unit
-val show_const : const -> string
-val show_projection : projection -> string
-val show_type_annot : (Format.formatter -> 'a -> unit) ->
-                      'a type_annot -> string
-val show_parser_expr : parser_expr -> string
+val pp_ast : (Format.formatter -> 'a -> unit) ->
+             (Format.formatter -> 'typ -> unit) ->
+             (Format.formatter -> 'v -> unit) ->
+             Format.formatter -> ('a, 'typ, 'v) ast -> unit
+val pp_varname : Format.formatter -> varname -> unit
+
 val show_parser_program : parser_program -> string
