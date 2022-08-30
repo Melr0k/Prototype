@@ -167,7 +167,8 @@ let convert_to_msc ~legacy bvars ast =
   let aux expr_var_map ast =
     let rec to_defs_and_a expr_var_map (_, e as ast) =
       let uast = Ast.unannot_and_normalize ast in
-      if ExprMap.mem uast expr_var_map && (fst uast) (* stable = share type ? *)
+      if Ast.is_st_expr uast (* stable = share type ? *)
+         && ExprMap.mem uast expr_var_map
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))
@@ -200,7 +201,7 @@ let convert_to_msc ~legacy bvars ast =
            let name = Variable.get_name v in
            let (defs1, expr_var_map, x) = to_defs_and_x ~name expr_var_map e1 in
            let e2 =
-             if fst e1 |> snd (* e1 stable → can copy the expression *)
+             if Ast.is_st_annot e1 (* e1 stable → can copy the expression *)
              then Ast.substitute e2 v e1 (* Substitute v by e1 in e2 *)
              else e2 in
            let (defs2, expr_var_map, y) = to_defs_and_x expr_var_map e2 in

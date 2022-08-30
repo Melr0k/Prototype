@@ -16,7 +16,6 @@ module VarMap : Map.S with type key=Variable.t
 module VarSet : Set.S with type elt=Variable.t
 
 type builtin_vars = (string * VarSet.elt) list (* name, var *)
-type st_env = bool VarMap.t (* var -> stable *)
 
 val ref_create : string
 val ref_get : string

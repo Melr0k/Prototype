@@ -51,9 +51,12 @@ type ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-type parser_expr = (annotation       , type_expr, varname   ) t
-type annot_expr  = (annotation * bool, Cduce.typ, Variable.t) t
-type expr        = (bool             , Cduce.typ, Variable.t) t
+type se = bool
+type st_env = se VarMap.t
+
+type parser_expr = (annotation     , type_expr, varname   ) t
+type annot_expr  = (annotation * se, Cduce.typ, Variable.t) t
+type expr        = (             se, Cduce.typ, Variable.t) t
 
 module Expr = struct
   type el = expr
@@ -148,55 +151,59 @@ let annotate tenv vtenv name_var_map e =
 
 let st stenv ae =
   let rec aux stenv (a, e) =
-    let b, e = match e with
+    let se, e = match e with
       | Abstract t -> true, Abstract t
       | Const c -> true, Const c
       | Var v -> begin match VarMap.find_opt v stenv with
-                 | Some b -> b, Var v
+                 | Some s -> s, Var v
                  | None -> failwith "Variable not found in st environnement."
                  end
       | Lambda (t, v, e) ->
-         let (_,b), _ as e = aux (VarMap.add v true stenv) e in
-         b, Lambda (t, v, e)
+         let (_,se), _ as e = aux (VarMap.add v true stenv) e in
+         se, Lambda (t, v, e)
       | Ite (e, t, e1, e2) ->
-         let (_,b ), _ as e  = aux stenv e  in
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let (_,b2), _ as e2 = aux stenv e2 in
-         b && b1 && b2, Ite (e, t, e1, e2)
+         let (_,s ), _ as e  = aux stenv e  in
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let (_,s2), _ as e2 = aux stenv e2 in
+         s && s1 && s2, Ite (e, t, e1, e2)
       | App (e1, e2) ->
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let (_,b2), _ as e2 = aux stenv e2 in
-         b1 && b2,  App (e1, e2)
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let (_,s2), _ as e2 = aux stenv e2 in
+         s1 && s2,  App (e1, e2)
       | Let (v, e1, e2) ->
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let (_,b2), _ as e2 = aux (VarMap.add v b1 stenv) e2 in
-         b1 && b2, Let (v, e1, e2)
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let (_,s2), _ as e2 = aux (VarMap.add v s1 stenv) e2 in
+         s1 && s2, Let (v, e1, e2)
       | Pair (e1, e2) ->
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let (_,b2), _ as e2 = aux stenv e2 in
-         b1 && b2, Pair (e1, e2)
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let (_,s2), _ as e2 = aux stenv e2 in
+         s1 && s2, Pair (e1, e2)
       | Projection (p, e) ->
-         let (_,b), _ as e = aux stenv e in
-         b, Projection (p, e)
+         let (_,s), _ as e = aux stenv e in
+         s, Projection (p, e)
       | RecordUpdate (e1, l, e2) ->
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let b2, e2 = begin match Utils.option_map (aux stenv) e2 with
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let s2, e2 = begin match Utils.option_map (aux stenv) e2 with
                       | None -> true, None
-                      | Some ((_,b), _) as e -> b, e
+                      | Some ((_,s), _) as e -> s, e
                       end in
-         b1 && b2, RecordUpdate (e1, l, e2)
+         s1 && s2, RecordUpdate (e1, l, e2)
       | Ref e ->
-         let (_,b), _ as e = aux stenv e in
-         b, Ref e
+         let (_,s), _ as e = aux stenv e in
+         s, Ref e
       | Read e -> false, Read (aux stenv e)
       | Assign (e1, e2) ->
-         let (_,b1), _ as e1 = aux stenv e1 in
-         let (_,b2), _ as e2 = aux stenv e2 in
-         b1 && b2, Assign (e1, e2)
+         let (_,s1), _ as e1 = aux stenv e1 in
+         let (_,s2), _ as e2 = aux stenv e2 in
+         s1 && s2, Assign (e1, e2)
     in
-    ((a,b), e)
+    ((a,se), e)
   in
   aux stenv ae
+
+let is_st se = se
+let is_st_annot ((_,se),_) = is_st se
+and is_st_expr (se,_) = is_st se
 
 let parser_expr_to_annot_expr tenv vtenv name_var_map stenv e =
   annotate tenv vtenv name_var_map e |> st stenv
