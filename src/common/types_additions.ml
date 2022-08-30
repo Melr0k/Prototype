@@ -573,7 +573,7 @@ and pp_type_expr fmt = function
      Format.fprintf fmt "}@]"
   | TSList t_reg -> pp_type_regexp fmt t_reg
   | TArrow (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>%a ->@ %a@]" pp_type_expr t1 pp_type_expr t2
+     Format.fprintf fmt "@[<hov 1>(%a ->@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TCup (t1, t2) ->
      Format.fprintf fmt "@[<hov 1>(%a |@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TCap (t1, t2) ->

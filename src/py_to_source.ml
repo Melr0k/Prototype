@@ -130,28 +130,38 @@ let translate py_ast =
     (vars, venv, fenv)
   in
 
-  (* /!\ TODO: Theses functions are not defined in source language /!\ *)
+  let prelude_op = Hashtbl.create 15 in (* store the operators needed *)
+  let t_int = Types_additions.(TBase (TInt (None, None)))
+  and t_bool = Types_additions.(TBase (TBool)) in
   let binop b =
-    Ast.Var (match b with
-             | Py_ast.Badd -> "+"
-             | Py_ast.Bsub -> "-"
-             | Py_ast.Bmul -> "*"
-             | Py_ast.Bdiv -> "/"
-             | Py_ast.Bmod -> "%"
-             | Py_ast.Beq  -> "="
-             | Py_ast.Bneq -> "<>"
-             | Py_ast.Blt  -> "<"
-             | Py_ast.Ble  -> "<="
-             | Py_ast.Bgt  -> ">"
-             | Py_ast.Bge  -> ">="
-             | Py_ast.Band -> "&&"
-             | Py_ast.Bor  -> "||"
-      ) |> dannot
+    let open Types_additions in
+    let f, typ = match b with
+      | Py_ast.Badd -> "+" , TArrow (t_int, TArrow (t_int, t_int))
+      | Py_ast.Bsub -> "-" , TArrow (t_int, TArrow (t_int, t_int))
+      | Py_ast.Bmul -> "*" , TArrow (t_int, TArrow (t_int, t_int))
+      | Py_ast.Bdiv -> "/" , TArrow (t_int, TArrow (t_int, t_int))
+      | Py_ast.Bmod -> "%" , TArrow (t_int, TArrow (t_int, t_int))
+      | Py_ast.Beq  -> "=" , TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Bneq -> "<>", TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Blt  -> "<" , TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Ble  -> "<=", TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Bgt  -> ">" , TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Bge  -> ">=", TArrow (t_int, TArrow (t_int, t_bool))
+      | Py_ast.Band -> "&&", TArrow (t_bool, TArrow (t_bool, t_bool))
+      | Py_ast.Bor  -> "||", TArrow (t_bool, TArrow (t_bool, t_bool))
+    in
+    if Hashtbl.mem prelude_op f |> not
+    then Hashtbl.add prelude_op f typ;
+    Ast.Var f |> dannot
   and unop u =
-    Ast.Var (match u with
-             | Py_ast.Uneg -> "-"
-             | Py_ast.Unot -> "!"
-      ) |> dannot
+    let open Types_additions in
+    let f, typ = match u with
+      | Py_ast.Uneg -> "-", TArrow (t_int, t_int)
+      | Py_ast.Unot -> "!", TArrow (t_bool, t_bool)
+    in
+    if Hashtbl.mem prelude_op f |> not
+    then Hashtbl.add prelude_op f typ;
+    Ast.Var f |> dannot
   in
   let rec treat_expr (vars, venv, fenv as env) (e:Py_ast.expr) =
     let aux = function
@@ -308,10 +318,17 @@ let translate py_ast =
           let pos = snd (fst v) in
           raise (SyntaxError (pos, "Return outside function"))
   in
-  treat_top_decl
-    ( upd_env (* load toplevel variables in venv *)
-        (Py_set.empty, Py_env.empty, Py_env.empty) ([], py_ast) )
-    py_ast
+  let source_ast =
+    treat_top_decl
+      ( upd_env (* load toplevel variables in venv *)
+          (Py_set.empty, Py_env.empty, Py_env.empty) ([], py_ast) )
+      py_ast
+  in
+  Hashtbl.fold (* add binop and unop used in py_ast *)
+    (fun f t acc ->
+      Ast.Definition (false,(f, Ast.Abstract t |> dannot))::acc)
+    prelude_op
+    source_ast
 
 let translate_input p =
   let py_ast : Py_ast.file =

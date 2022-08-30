@@ -49,6 +49,6 @@ else:
 ## in function if-type # !! TODO find stmt.Sreturn !!
 def i(x):
    if type(x) == int:
-      return 9
+      return x+1
    else:
       return 10
