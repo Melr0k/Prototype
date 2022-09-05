@@ -531,11 +531,13 @@ let share_jokerized_arrows lst =
 
 let rec pp_type_base fmt = function
   | TInt (lb, ub) ->
-     Format.fprintf fmt "Int(%s,@ %s)"
-       (match lb with Some l -> string_of_int l | None -> "-infty")
-       (match ub with Some u -> string_of_int u | None -> "infty")
-  | TSChar c   -> Format.fprintf fmt "Char %c" c
-  | TSString s -> Format.fprintf fmt "String %s" s
+     if lb=None && ub=None
+     then Format.fprintf fmt "Int"
+     else Format.fprintf fmt "Int(%s,@ %s)"
+            (match lb with Some l -> string_of_int l | None -> "-infty")
+            (match ub with Some u -> string_of_int u | None ->  "infty")
+  | TSChar c   -> Format.fprintf fmt "Char(%c)" c
+  | TSString s -> Format.fprintf fmt "String(%s)" s
   | TBool      -> Format.fprintf fmt "Bool"
   | TTrue      -> Format.fprintf fmt "Truthy"
   | TFalse     -> Format.fprintf fmt "Falsy"
@@ -548,15 +550,14 @@ let rec pp_type_base fmt = function
   | TList      -> Format.fprintf fmt "List"
   | TRef       -> Format.fprintf fmt "Ref"
 and pp_type_regexp fmt = function
-  | ReEpsilon -> Format.fprintf fmt "epsilon"
-  | ReEmpty -> Format.fprintf fmt "empty"
-  | ReType t -> Format.fprintf fmt "(%a)" pp_type_expr t
+  | ReEpsilon -> Format.fprintf fmt "Epsilon"
+  | ReEmpty -> Format.fprintf fmt "Empty"
+  | ReType t -> Format.fprintf fmt "Re(%a)" pp_type_expr t
   | ReSeq (r1, r2) ->
-     Format.fprintf fmt "seq(%a,@ %a)" pp_type_regexp r1 pp_type_regexp r2
+     Format.fprintf fmt "Seq(%a,@ %a)" pp_type_regexp r1 pp_type_regexp r2
   | ReStar r -> Format.fprintf fmt "%a*@ " pp_type_regexp r
   | ReAlt (r1, r2) ->
      Format.fprintf fmt "Alt(%a,@ %a)" pp_type_regexp r1 pp_type_regexp r2
-
 and pp_type_expr fmt = function
   | TVar s -> Format.fprintf fmt "%s" s
   | TBase b -> pp_type_base fmt b
@@ -566,9 +567,9 @@ and pp_type_expr fmt = function
   | TRecord (b, stbl) ->
      List.fold_left
        (fun () (s,t,b) ->
-         Format.fprintf fmt "%s: %s =@ %a;@ " (if b then "true" else "false") s
+         Format.fprintf fmt "%b: %s =@ %a;@ " b s
            pp_type_expr t)
-       (Format.fprintf fmt "@[<hov 1>{%s " (if b then "true" else "false"))
+       (Format.fprintf fmt "@[<hov 1>{%b " b)
        stbl;
      Format.fprintf fmt "}@]"
   | TSList t_reg -> pp_type_regexp fmt t_reg
