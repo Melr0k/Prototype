@@ -426,5 +426,5 @@ let pp_parser_element fmt = function
 
 let show_parser_program =
   List.fold_left
-    (fun str e -> Format.asprintf "%s%a\n" str pp_parser_element e)
+    (fun str e -> Format.asprintf "%s%a@\n" str pp_parser_element e)
     ""
