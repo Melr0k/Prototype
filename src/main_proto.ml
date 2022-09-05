@@ -23,18 +23,31 @@ let print_ill_typed (pos, str) =
 let print_result str =
   Format.fprintf !std_fmt "%s@?" str
 
-let type_check_program
+let type_check_program ~(from_py:bool)
       (program:Ast.parser_program) (pr:string -> unit) pr_logs pr_ill_typed =
   let test_def (tenv,varm,env,stenv,bvars) (name,parsed_expr) =
     Format.ksprintf pr "%s " (name ^ ":" |> Utils.colorify White) ;
     begin
       let var = Variable.create (Some name) in
       let ((_,v_st),_) as annot_expr =
-        Ast.parser_expr_to_annot_expr tenv empty_vtenv varm stenv parsed_expr in
+        Ast.parser_expr_to_annot_expr ~from_py
+          tenv empty_vtenv varm stenv parsed_expr in
       let time0 = Unix.gettimeofday () in
       let nf_expr = convert_to_msc ~legacy:true bvars annot_expr in
       let time1 = Unix.gettimeofday () in
-      assert (VarSet.subset (fv_e nf_expr) (Env.domain env |> VarSet.of_list)) ;
+
+      let fvelist = fv_e nf_expr in
+      let envlist = Env.domain env |> VarSet.of_list in
+      if not (VarSet.subset fvelist envlist)
+      then begin
+          Format.fprintf !err_fmt "traduction de l'ast:\n%s\n"
+            (show_e nf_expr);
+          failwith (Printf.sprintf "vars in fv_e, not in env: %s"
+                      (VarSet.find_first (fun e -> VarSet.mem e envlist
+                                                   |> not) fvelist
+                       |> Variable.get_name
+                       |> Option.get))
+        end;
       let tmp_log = !Utils.log_enabled in
       Utils.log_enabled := false ;
       let typ_legacy =
@@ -106,18 +119,18 @@ let type_check_program
   in
   let ini_name_var_map, ini_env, st_env, builtin_vars =
     List.fold_left
-      (fun (varm, env, st, bv) (name, typ, b) ->
+      (fun (varm, env, st, bv) (name, typ, se) ->
         let var = Variable.create (Some name) in
         ( StrMap.add name var varm
         , Env.add var typ env
-        , VarMap.add var b st
+        , VarMap.add var se st
         , (name, var)::bv )
       )
       (Ast.empty_name_var_map, Env.empty, VarMap.empty, [])
-      (* name      , type : typ          , st  *)
-      [ (ref_create, Cduce.fun_create_ref, true )
-      ; (ref_get   , Cduce.fun_get_ref   , false)
-      ; (ref_set   , Cduce.fun_set_ref   , true ) ]
+      (*  name      , type : typ          , side-effects  *)
+      [ ( ref_create, Cduce.fun_create_ref, Ast.no_se    )
+      ; ( ref_get   , Cduce.fun_get_ref   , Ast.read_se  )
+      ; ( ref_set   , Cduce.fun_set_ref   , Ast.write_se ) ]
   in
   ignore (List.fold_left
             treat_elem
@@ -127,13 +140,13 @@ let type_check_program
 let main f =
   Printexc.record_backtrace true;
   try
-    let ast : Ast.parser_program =
+    let (ast : Ast.parser_program), from_py =
       match f with
-      | `File fn -> parse_program_file fn
-      | `String s -> parse_program_string s
-      | `Python p -> Py_to_source.translate_input p
+      | `File fn -> parse_program_file fn, false
+      | `String s -> parse_program_string s, false
+      | `Python p -> Py_to_source.translate_input p, true
     in
-    type_check_program ast print_result print_logs print_ill_typed
+    type_check_program ~from_py ast print_result print_logs print_ill_typed
   with
   (* Source *)
   | Ast.LexicalError(pos, msg) ->

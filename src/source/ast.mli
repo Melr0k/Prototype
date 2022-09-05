@@ -47,7 +47,7 @@ type ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-type se = bool (* has no read side effects ? *)
+type se = bool * bool (* side effects : (read, write) *)
 type st_env = se VarMap.t (* var -> stable *)
 
 type parser_expr = (annotation     , type_expr, varname   ) t
@@ -64,13 +64,23 @@ val unique_exprid : unit -> exprid
 val identifier_of_expr : (annotation, 'a, 'b) t -> exprid
 val position_of_expr : (annotation, 'a, 'b) t -> Position.t
 
-val new_annot : Position.t -> annotation
-val copy_annot : annotation -> annotation
+(* Side-effects and stability *)
+val no_se : se
+val read_se : se
+val write_se : se
+val all_se : se
+val (|||) : se -> se -> se
+val (&&&) : se -> se -> se
 
 val is_st_annot : annot_expr -> bool
 val is_st_expr : expr -> bool
 
-val parser_expr_to_annot_expr :
+(* Ast transformations *)
+
+val new_annot : Position.t -> annotation
+val copy_annot : annotation -> annotation
+
+val parser_expr_to_annot_expr : ?from_py:bool ->
   type_env -> var_type_env -> name_var_map -> st_env ->
   parser_expr -> annot_expr
 

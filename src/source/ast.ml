@@ -51,7 +51,7 @@ type ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-type se = bool
+type se = bool * bool (* contains read?, write? *)
 type st_env = se VarMap.t
 
 type parser_expr = (annotation     , type_expr, varname   ) t
@@ -89,6 +89,22 @@ let unique_exprid =
   )
 let identifier_of_expr (a,_) = Position.value a
 let position_of_expr (a,_) = Position.position a
+
+(* Side-effects and stability *)
+
+let no_se = (false, false)
+and read_se = (true, false)
+and write_se = (false, true)
+and all_se = (true, true)
+
+let (|||) = fun (ar,aw) (br,bw) -> (ar || br), (aw || bw)
+and (&&&) = fun (ar,aw) (br,bw) -> (ar && br), (aw && bw)
+
+let is_st (r,w) = not (r && w)
+let is_st_annot ((_,se),_) = is_st se
+and is_st_expr (se,_) = is_st se
+
+(* Ast transformations *)
 
 let new_annot p =
   Position.with_pos p (unique_exprid ())
@@ -149,66 +165,68 @@ let annotate tenv vtenv name_var_map e =
   in
   aux vtenv name_var_map e
 
-let st stenv ae =
-  let rec aux stenv (a, e) =
+let st from_py stenv ae =
+  let rec aux stenv (a, e) : annot_expr =
     let se, e = match e with
-      | Abstract t -> true, Abstract t
-      | Const c -> true, Const c
+      | Abstract t -> no_se, Abstract t
+      | Const c -> no_se, Const c
       | Var v -> begin match VarMap.find_opt v stenv with
                  | Some s -> s, Var v
                  | None -> failwith "Variable not found in st environnement."
                  end
       | Lambda (t, v, e) ->
-         let (_,se), _ as e = aux (VarMap.add v true stenv) e in
-         se, Lambda (t, v, e)
+         let se_py = if from_py then read_se else all_se in
+         (* no write side-effect in mini-python functions *)
+         let stenv = VarMap.add v se_py stenv in
+         let (_,se), _ as e =
+           aux stenv e in
+         (se &&& se_py), Lambda (t, v, e)
       | Ite (e, t, e1, e2) ->
          let (_,s ), _ as e  = aux stenv e  in
          let (_,s1), _ as e1 = aux stenv e1 in
          let (_,s2), _ as e2 = aux stenv e2 in
-         s && s1 && s2, Ite (e, t, e1, e2)
+         s ||| s1 ||| s2, Ite (e, t, e1, e2)
       | App (e1, e2) ->
          let (_,s1), _ as e1 = aux stenv e1 in
          let (_,s2), _ as e2 = aux stenv e2 in
-         s1 && s2,  App (e1, e2)
+         s1 ||| s2,  App (e1, e2)
       | Let (v, e1, e2) ->
          let (_,s1), _ as e1 = aux stenv e1 in
          let (_,s2), _ as e2 = aux (VarMap.add v s1 stenv) e2 in
-         s1 && s2, Let (v, e1, e2)
+         s1 ||| s2, Let (v, e1, e2)
       | Pair (e1, e2) ->
          let (_,s1), _ as e1 = aux stenv e1 in
          let (_,s2), _ as e2 = aux stenv e2 in
-         s1 && s2, Pair (e1, e2)
+         s1 ||| s2, Pair (e1, e2)
       | Projection (p, e) ->
          let (_,s), _ as e = aux stenv e in
          s, Projection (p, e)
       | RecordUpdate (e1, l, e2) ->
          let (_,s1), _ as e1 = aux stenv e1 in
          let s2, e2 = begin match Utils.option_map (aux stenv) e2 with
-                      | None -> true, None
+                      | None -> no_se, None
                       | Some ((_,s), _) as e -> s, e
                       end in
-         s1 && s2, RecordUpdate (e1, l, e2)
+         s1 ||| s2, RecordUpdate (e1, l, e2)
       | Ref e ->
          let (_,s), _ as e = aux stenv e in
          s, Ref e
-      | Read e -> false, Read (aux stenv e)
+      | Read e ->
+         let (_,s), _ as e = aux stenv e in
+         read_se ||| s, Read e
       | Assign (e1, e2) ->
          let (_,s1), _ as e1 = aux stenv e1 in
          let (_,s2), _ as e2 = aux stenv e2 in
-         s1 && s2, Assign (e1, e2)
+         write_se ||| s1 ||| s2, Assign (e1, e2)
     in
     ((a,se), e)
   in
   aux stenv ae
 
-let is_st se = se
-let is_st_annot ((_,se),_) = is_st se
-and is_st_expr (se,_) = is_st se
+let parser_expr_to_annot_expr ?(from_py=false) tenv vtenv name_var_map stenv e =
+  annotate tenv vtenv name_var_map e |> st from_py stenv
 
-let parser_expr_to_annot_expr tenv vtenv name_var_map stenv e =
-  annotate tenv vtenv name_var_map e |> st stenv
-
-let rec unannot ((_,b),e) =
+let rec unannot ((_,se),e) =
     let e = match e with
     | Abstract t -> Abstract t
     | Const c -> Const c
@@ -225,14 +243,14 @@ let rec unannot ((_,b),e) =
     | Read e -> Read (unannot e)
     | Assign (e1, e2) -> Assign (unannot e1, unannot e2)
     in
-    ( b, e )
+    ( se, e )
 
 let normalize_bvs e =
-  let rec aux depth map (stable, e) =
+  let rec aux depth map (se, e) =
     let e = match e with
       | Abstract t -> Abstract t
       | Const c -> Const c
-      | Var v when stable && VarMap.mem v map ->
+      | Var v when is_st se && VarMap.mem v map ->
          Var (VarMap.find v map)
       | Var v -> Var v
       | Lambda (t, v, e) ->
@@ -256,7 +274,7 @@ let normalize_bvs e =
       | Ref e -> Ref (aux depth map e)
       | Read e -> Ref (aux depth map e)
       | Assign (e1,e2) -> Assign (aux depth map e1, aux depth map e2)
-    in (stable, e)
+    in (se, e)
   in aux 0 VarMap.empty e
 
 let unannot_and_normalize e = e |> unannot |> normalize_bvs
@@ -332,7 +350,7 @@ let rec pp_const fmt = function
   | Unit        -> Format.fprintf fmt "()"
   | Nil         -> Format.fprintf fmt "`nil"
   | EmptyRecord -> Format.fprintf fmt "{}"
-  | Bool b      -> Format.fprintf fmt (if b then "true" else "false")
+  | Bool b      -> Format.fprintf fmt "%b" b
   | Int i       -> Format.fprintf fmt "%d" i
   | Char c      -> Format.fprintf fmt "%c" c
   | String s    -> Format.fprintf fmt "%s" s
@@ -373,9 +391,12 @@ and pp_ast fmt_a fmt_typ fmt_v fmt = function
   | RecordUpdate ((_,e1), l, None) ->
      Format.fprintf fmt "{%a; \ %s}"
        (pp_ast fmt_a fmt_typ fmt_v) e1 l
+  | RecordUpdate ((_,Const EmptyRecord), l, Some (_,e2)) ->
+     Format.fprintf fmt "{%s =@ %a}"
+       l (pp_ast fmt_a fmt_typ fmt_v) e2
   | RecordUpdate ((_,e1), l, Some (_,e2)) ->
-     Format.fprintf fmt "{%a; %s =@ %a}"
-       (pp_ast fmt_a fmt_typ fmt_v) e1 l (pp_ast fmt_a fmt_typ fmt_v) e2
+     Format.fprintf fmt "{%s =@ %a; %a}"
+       l (pp_ast fmt_a fmt_typ fmt_v) e2 (pp_ast fmt_a fmt_typ fmt_v) e1
   | Ref (_,e) ->
      Format.fprintf fmt "@[<hov 2>ref@ %a@]" (pp_ast fmt_a fmt_typ fmt_v) e
   | Read (_,e) -> Format.fprintf fmt "!@[%a@]" (pp_ast fmt_a fmt_typ fmt_v) e
