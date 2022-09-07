@@ -361,26 +361,25 @@ and pp_projection fmt = function
   | Field s -> Format.fprintf fmt "%s" s
 and pp_type_annot fa fmt = function
   | Unnanoted -> Format.fprintf fmt ""
-  | ADomain t -> Format.fprintf fmt " <@[%a@]>" fa t
-  | AArrow t  -> Format.fprintf fmt " <@[%a@]>" fa t
+  | ADomain t | AArrow t  -> Format.fprintf fmt " <@[%a@]>" fa t
 and pp_ast fmt_a fmt_typ fmt_v fmt = function
-  | Abstract t -> Format.fprintf fmt "%a" fmt_typ t
+  | Abstract t -> Format.fprintf fmt "<%a>" fmt_typ t
   | Const c -> Format.fprintf fmt "%a" pp_const c
   | Var v -> Format.fprintf fmt "%a" fmt_v v
   | Lambda (ta, v, (_,e)) ->
      Format.fprintf fmt "@[<v 2>fun%a %a ->@ %a@]"
        (pp_type_annot fmt_typ) ta fmt_v v (pp_ast fmt_a fmt_typ fmt_v) e
   | Ite ((_,e), t, (_,e1), (_,e2)) ->
-     Format.fprintf fmt "@[<hov>if@ %a@ is@ %a@\n\
-                         then@[<hov 2>@ %a@]@\n\
-                         else@[<hov 2>@ %a@]@]"
+     Format.fprintf fmt "@[if@[<v 1> %a@] is %a@\n\
+                         @[<v 2>then %a@]@\n\
+                         @[<v 2>else %a@]@]"
        (pp_ast fmt_a fmt_typ fmt_v) e fmt_typ t
        (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
   | App ((_,e1), (_,e2)) ->
-     Format.fprintf fmt "@[%a@ %a@]"
+     Format.fprintf fmt "@[(%a %a)@]"
        (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
   | Let (v, (_,e1), (_,e2)) ->
-     Format.fprintf fmt "@[<hov 2>let %a =@ %a@ @]in@\n%a" fmt_v v
+     Format.fprintf fmt "@[<v 2>let %a = %a @]in@ %a" fmt_v v
        (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
   | Pair ((_,e1), (_,e2)) ->
      Format.fprintf fmt "(@[%a@],@ @[%a@])"
@@ -392,16 +391,16 @@ and pp_ast fmt_a fmt_typ fmt_v fmt = function
      Format.fprintf fmt "{%a; \ %s}"
        (pp_ast fmt_a fmt_typ fmt_v) e1 l
   | RecordUpdate ((_,Const EmptyRecord), l, Some (_,e2)) ->
-     Format.fprintf fmt "{%s =@ %a}"
+     Format.fprintf fmt "{%s = %a}"
        l (pp_ast fmt_a fmt_typ fmt_v) e2
   | RecordUpdate ((_,e1), l, Some (_,e2)) ->
-     Format.fprintf fmt "{%s =@ %a; %a}"
+     Format.fprintf fmt "{%s = %a;@ %a}"
        l (pp_ast fmt_a fmt_typ fmt_v) e2 (pp_ast fmt_a fmt_typ fmt_v) e1
   | Ref (_,e) ->
-     Format.fprintf fmt "@[<hov 2>ref@ %a@]" (pp_ast fmt_a fmt_typ fmt_v) e
+     Format.fprintf fmt "@[<v 2>ref %a@]" (pp_ast fmt_a fmt_typ fmt_v) e
   | Read (_,e) -> Format.fprintf fmt "!@[%a@]" (pp_ast fmt_a fmt_typ fmt_v) e
   | Assign ((_,e1), (_,e2)) ->
-     Format.fprintf fmt "@[%a@] :=@ %a"
+     Format.fprintf fmt "%a := %a"
        (pp_ast fmt_a fmt_typ fmt_v) e1 (pp_ast fmt_a fmt_typ fmt_v) e2
 
 let pp_varname fmt s = Format.fprintf fmt "%s" s
@@ -409,7 +408,7 @@ and pp_annotation fmt _ = Format.fprintf fmt "[opaque]"
 
 let pp_parser_element fmt = function
   | Definition (_,(fid,(_,ast))) ->
-     Format.fprintf fmt "@[<hov 2>Let %s =@ %a@];;"
+     Format.fprintf fmt "@[<hov 2>let %s = %a@]"
        (*if b then "⊤" else "⊥"*) fid
        (pp_ast pp_annotation pp_type_expr pp_varname) ast
   | Atoms s -> List.fold_left
@@ -424,7 +423,11 @@ let pp_parser_element fmt = function
                  l;
                Format.fprintf fmt "@]@\n"
 
-let show_parser_program =
+let pp_parser_program fmt p =
   List.fold_left
-    (fun str e -> Format.asprintf "%s%a@\n" str pp_parser_element e)
-    ""
+    (fun () e -> Format.fprintf fmt "%a@\n@." pp_parser_element e)
+    (Format.fprintf fmt "")
+    p
+
+let show_parser_program p =
+  Format.asprintf "%a" pp_parser_program p

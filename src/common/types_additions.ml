@@ -563,24 +563,24 @@ and pp_type_expr fmt = function
   | TBase b -> pp_type_base fmt b
   | TCustom s -> Format.fprintf fmt "%s" s
   | TPair (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>(%a,@ %a)@]" pp_type_expr t1 pp_type_expr t2
+     Format.fprintf fmt "@[<v 2>(%a,@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TRecord (b, stbl) ->
      List.fold_left
        (fun () (s,t,b) ->
          Format.fprintf fmt "%b: %s =@ %a;@ " b s
            pp_type_expr t)
-       (Format.fprintf fmt "@[<hov 1>{%b " b)
+       (Format.fprintf fmt "@[<v 2>{%b " b)
        stbl;
      Format.fprintf fmt "}@]"
   | TSList t_reg -> pp_type_regexp fmt t_reg
   | TArrow (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>(%a ->@ %a)@]" pp_type_expr t1 pp_type_expr t2
+     Format.fprintf fmt "@[<hov 2>(%a ->@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TCup (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>(%a |@ %a)@]" pp_type_expr t1 pp_type_expr t2
+     Format.fprintf fmt "@[<v 2>(%a |@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TCap (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>(%a &@ %a)@]" pp_type_expr t1 pp_type_expr t2
+     Format.fprintf fmt "@[<v 2>(%a &@ %a)@]" pp_type_expr t1 pp_type_expr t2
   | TDiff (t1, t2) ->
-     Format.fprintf fmt "@[<hov 1>(%a wout @ %a)@]"
+     Format.fprintf fmt "@[<v 2>(%a wout@ %a)@]"
        pp_type_expr t1 pp_type_expr t2
   | TNeg t -> Format.fprintf fmt "not %a" pp_type_expr t
 
