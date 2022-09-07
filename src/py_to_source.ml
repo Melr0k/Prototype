@@ -258,7 +258,7 @@ let translate py_ast =
                               , treat_uni_decl ~topl env e2 )
                       |> annot s.stmt_loc
             in
-            if not topl || has_return e1 || has_return e2
+            if not topl && (has_return e1 || has_return e2)
             then `Val ite
                   (* We suppose "one if branch contains return" → "each branch
                      have a return" *)
