@@ -200,10 +200,7 @@ let convert_to_msc ~legacy bvars ast =
         | Ast.Let (v, e1, e2) ->
            let name = Variable.get_name v in
            let (defs1, expr_var_map, x) = to_defs_and_x ~name expr_var_map e1 in
-           let e2 =
-             if Ast.is_st_annot e1 (* e1 stable → can copy the expression *)
-             then Ast.substitute e2 v e1 (* Substitute v by e1 in e2 *)
-             else e2 in
+           let e2 = Ast.substitute e2 v e1 in (* Substitute v by e1 in e2 *)
            let (defs2, expr_var_map, y) = to_defs_and_x expr_var_map e2 in
            (defs2@defs1, expr_var_map, Let (x, y))
         | Ast.App (e1, e2) ->
