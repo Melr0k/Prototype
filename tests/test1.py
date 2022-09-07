@@ -52,3 +52,23 @@ def i(x):
       return x+1
    else:
       return 10
+
+x = 5
+
+def f(g):
+  if type(g(None))==int:
+    return g(x)+7
+  else: return None
+
+def g(n):
+  r = -1
+  if type(x)==bool:
+    r = x
+  return r
+
+if type(f(g))==int:
+  f(g)
+else:
+  0
+
+x = 0

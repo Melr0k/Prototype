@@ -71,7 +71,8 @@ let translate py_ast =
           end || has_return l
   in
 
-  let rec make_lambda args body : Ast.parser_expr =
+  let argnum n = Printf.sprintf "arg%d" n in
+  let make_lambda args body : Ast.parser_expr =
     (* build the arguments of Ast.Lambda with n arguments:
        def f(x, y, ...):
        =>
@@ -79,25 +80,26 @@ let translate py_ast =
 
        where argn = {x; y; z; ...}
      *)
-    match args with
-    | [] -> body
-    | x::l ->
-       let body' = make_lambda l body in
-       Ast.(Let ( x
-                , Projection (Field x, argvar) |> dannot
-                , body')) |> dannot
-  in
-  let make_app f loc varl astl =
     let rec aux n = function
-      | []   , []    -> Ast.(Const EmptyRecord) |> annot loc
-      | x::xl, a::al ->
-         Ast.RecordUpdate (aux (n+1) (xl, al), x, Some a) |> annot loc
-      | _, [] | [], _ ->
-         SyntaxError (loc, fun_args_error f
-                             (List.length varl)
-                             (List.length astl)) |> raise
+      | [] -> body
+      | x::l ->
+         let body' = aux (n+1) l in
+         Ast.(Let ( x
+                  , Projection (Field (argnum n), argvar) |> dannot
+                  , body')) |> dannot
     in
-    aux 0 (varl, astl)
+    aux 0 args
+  in
+  let make_app f loc n astl =
+    let len = List.length astl in
+    let rec aux = function
+      | x, [] when x=len -> Ast.(Const EmptyRecord) |> annot loc
+      | n, a::al ->
+         Ast.RecordUpdate (aux (n+1, al), argnum n, Some a) |> annot loc
+      | _ ->
+         SyntaxError (loc, fun_args_error f n len) |> raise
+    in
+    aux (0, astl)
   in
   let upd_env (vars, venv, fenv) (args, body) =
     (* variable's scope in python is weird, but it's ok *)
@@ -156,8 +158,8 @@ let translate py_ast =
   and unop u =
     let open Types_additions in
     let f, typ = match u with
-      | Py_ast.Uneg -> "-", TArrow (t_int, t_int)
-      | Py_ast.Unot -> "!", TArrow (t_bool, t_bool)
+      | Py_ast.Uneg -> "neg", TArrow (t_int, t_int)
+      | Py_ast.Unot -> "not", TArrow (t_bool, t_bool)
     in
     if Hashtbl.mem prelude_op f |> not
     then Hashtbl.add prelude_op f typ;
@@ -182,9 +184,13 @@ let translate py_ast =
       | Py_ast.Eunop (u, e) ->
          Ast.(App (unop u, treat_expr env e))
       | Py_ast.Ecall (fid, args) ->
-         let argvars = match Py_env.find_opt fid fenv with
-           | Some f -> f
-           | None -> raise (Undefined (e.expr_loc,fid))
+         let nbargs = match Py_env.find_opt fid fenv with
+           | Some n -> n
+           | None -> (* perhaps undeclared function in parameters *)
+              begin match Py_set.find_opt fid vars with
+              | Some _ -> List.length args
+              | None -> raise (Undefined (e.expr_loc,fid))
+              end
          in
          Ast.(App ( Var fid |> annot e.expr_loc
                   , List.fold_left
@@ -192,7 +198,7 @@ let translate py_ast =
                       []
                       args
                     |> List.rev
-                    |> make_app fid e.expr_loc argvars)
+                    |> make_app fid e.expr_loc nbargs)
          )
       | Py_ast.Elist _ -> failwith "Lists not supported yet."
       | Py_ast.Emake _ -> failwith "Make list not supported yet."
@@ -229,7 +235,7 @@ let translate py_ast =
   and treat_decl_ddef (vars,venv,fenv) (pos,fid,args,body) = (* Py_ast.Ddef *)
     let vars,(venv,fenv) = Py_set.add fid vars
                          , Py_env.( add fid false venv
-                                  , add fid args fenv) in (* fid *)
+                                  , add fid List.(length args) fenv) in
     let f_vars,f_venv,f_fenv =
       upd_env (vars,venv,fenv) (args,body) in (* args body *)
     let b = (treat_uni_decl (f_vars, f_venv, f_fenv) body (* ~topl:false *)
