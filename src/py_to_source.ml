@@ -262,14 +262,13 @@ let translate py_ast =
             then `Val ite
                   (* We suppose "one if branch contains return" → "each branch
                      have a return" *)
-            else `Instr (env, ite, annot s.stmt_loc)
+            else `Instr (ite, annot s.stmt_loc)
          | Py_ast.Sreturn _ -> (* will fail if topl *)
             `Val (treat_stmt env s) (* return = ignore l *)
          | Py_ast.Sassign (v, e) ->
             if Py_set.mem v vars (* v ∈ vars → v ∈ venv *)
             then if Py_env.find v venv (* v : Ref *)
-                 then `Instr ( env
-                             , Ast.(Assign ( Var v |> annot s.stmt_loc
+                 then `Instr ( Ast.(Assign ( Var v |> annot s.stmt_loc
                                            , treat_expr env e))
                                |> annot s.stmt_loc
                              , annot s.stmt_loc)
@@ -287,8 +286,7 @@ let translate py_ast =
                          else e)
                       , annot s.stmt_loc )
          | _ ->
-            `Instr ( env
-                   , treat_stmt env s
+            `Instr ( treat_stmt env s
                    , annot s.stmt_loc)
          end
   and treat_uni_decl ?(topl=false) env : Py_ast.file -> Ast.parser_expr =
@@ -299,7 +297,7 @@ let translate py_ast =
        | `Pass -> treat_uni_decl ~topl env l
        | `Let (env, v, e, fann) ->
           Ast.Let (v, e, treat_uni_decl ~topl env l) |> fann
-       | `Instr (env, e, fann) ->
+       | `Instr (e, fann) ->
           if l=[] && topl
           then e
           else Ast.Let ("_", e, treat_uni_decl ~topl env l)
@@ -318,7 +316,7 @@ let translate py_ast =
        | `Pass -> treat_top_decl env l
        | `Let (env, v, e, _) ->
           Ast.Definition (false, (v, e)) :: treat_top_decl env l
-       | `Instr (env, e, _) ->
+       | `Instr (e, _) ->
           Ast.Definition (false, ("_", e)) :: treat_top_decl env l
        | `Val v ->
           let pos = snd (fst v) in
