@@ -177,8 +177,7 @@ let st from_py stenv ae =
          let v_se = if from_py then read_se else all_se in
          (* no write side-effect in mini-python functions *)
          let stenv = VarMap.add v v_se stenv in
-         let (_,se), _ as e =
-           aux stenv e in
+         let (_,se), _ as e = aux stenv e in
          (se &&& v_se), Lambda (t, v, e)
       | Ite (e, t, e1, e2) ->
          let (_,s ), _ as e  = aux stenv e  in
