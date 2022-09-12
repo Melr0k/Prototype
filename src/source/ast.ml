@@ -156,10 +156,9 @@ let annotate tenv vtenv name_var_map e =
       | Projection (p, e) -> Projection (p, aux vtenv env e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Utils.option_map (aux vtenv env) e2)
-      | Ref e -> Ref (aux vtenv env e)               (*   TODO    *)
-      | Read e -> Read (aux vtenv env e)             (*  verify   *)
-      | Assign (e1,e2) -> Assign (aux vtenv env e1,  (* this code *)
-                                  aux vtenv env e2)
+      | Ref e -> Ref (aux vtenv env e)
+      | Read e -> Read (aux vtenv env e)
+      | Assign (e1,e2) -> Assign (aux vtenv env e1, aux vtenv env e2)
     in
     ((exprid,pos),e)
   in
