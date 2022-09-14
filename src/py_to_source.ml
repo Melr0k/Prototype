@@ -37,7 +37,7 @@ let translate py_ast =
       function
       | [] -> false
       | s::l ->
-         match s with (* 🤔 can we use a monad here ? *)
+         match s with
          | Py_ast.Dimport (_, _, idl) ->
             begin match find_v_opt idl with
             | Some _ -> false (* override *)
