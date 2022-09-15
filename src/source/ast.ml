@@ -164,7 +164,8 @@ let annotate tenv vtenv name_var_map e =
   in
   aux vtenv name_var_map e
 
-let st from_py stenv ae =
+let st _ stenv ae =
+  let from_py = false in (* no exceptions *)
   let rec aux stenv (a, e) : annot_expr =
     let se, e = match e with
       | Abstract t -> no_se, Abstract t
