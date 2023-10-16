@@ -228,10 +228,10 @@ let full_dnf t =
          ((pvs, nvs), expl) )
 
 let mk_var name = CD.Var.mk name
-let vars = CD.Types.Subst.vars
-let top_vars = CD.Types.Subst.top_vars
+let vars = (CD.Types.Subst.vars :> typ -> var list)
+let top_vars = (CD.Types.Subst.top_vars :> typ -> var list)
 let var_name = CD.Var.name
-let var_set = CD.Var.Set.from_list
+let var_set = (CD.Var.Set.from_list :> var list -> var list)
 let substitute = CD.Types.Subst.apply
 let mk_subst = CD.Types.Subst.from_list
 
