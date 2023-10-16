@@ -146,6 +146,9 @@ let main f =
       | `String s -> parse_program_string s, false
       | `Python p -> Py_to_source.translate_input p, true
     in
+    Printf.printf "%s\n%s\n%!"
+      ("got an ast:" |> Utils.colorify Green)
+      (Ast.show_parser_program ast);
     type_check_program ~from_py ast print_result print_logs print_ill_typed
   with
   (* Source *)
