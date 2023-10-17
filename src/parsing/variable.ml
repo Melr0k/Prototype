@@ -50,7 +50,7 @@ module Variable = struct
     match get_name t with
     | None -> Format.fprintf fmt "%d" t
     | Some str -> Format.fprintf fmt "%s" str
-    
+
   let show t =
     match get_name t with
     | None -> string_of_int t
@@ -59,3 +59,9 @@ end
 
 module VarMap = Map.Make(Variable)
 module VarSet = Set.Make(Variable)
+
+type builtin_vars = (string * VarSet.elt) list
+
+let ref_create = "__create_ref"
+let ref_get = "__get_ref"
+let ref_set = "__set_ref"

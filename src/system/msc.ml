@@ -16,12 +16,12 @@ type a =
   | RecordUpdate of Variable.t * string * Variable.t option
   | Let of Variable.t * Variable.t
   | TypeConstr of Variable.t * typ
-  [@@deriving show]
+[@@deriving show]
 
 and e =
   | Bind of Variable.t * a * e
   | Var of Variable.t
-  [@@deriving show]
+[@@deriving show]
 
 let fixpoint_var = Variable.create_other (Some "__builtin_fixpoint")
 let fixpoint_typ =
@@ -65,8 +65,8 @@ let fold ef af =
   let rec aux_a a =
     begin match a with
     | Alias _ | Abstract _ | Const _ | App _ | Pair _
-    | Projection _ | RecordUpdate _ | Ite _ | Let _
-    | TypeConstr _ -> []
+      | Projection _ | RecordUpdate _ | Ite _ | Let _
+      | TypeConstr _ -> []
     | Lambda (_, _, e) -> [aux_e e]
     end
     |> af a
@@ -91,10 +91,10 @@ let fv_a' a acc =
   match a with
   | Lambda (_, v, _) -> VarSet.remove v acc
   | Alias v | Projection (_, v) | RecordUpdate (v, _, None)
-  | TypeConstr (v, _) -> VarSet.add v acc
+    | TypeConstr (v, _) -> VarSet.add v acc
   | Ite (v, _, x1, x2) -> VarSet.add v acc |> VarSet.add x1 |> VarSet.add x2
-  | App (v1, v2) | Pair (v1, v2) | Let (v1, v2) | RecordUpdate (v1, _, Some v2) ->
-    VarSet.add v1 acc |> VarSet.add v2
+  | App (v1, v2) | Pair (v1, v2) | Let (v1, v2) | RecordUpdate (v1, _, Some v2)
+    -> VarSet.add v1 acc |> VarSet.add v2
   | Const _ | Abstract _ -> acc
 
 let fv_a x = fold_a fv_e' fv_a' x
@@ -114,21 +114,21 @@ let rec separate_defs bvs defs =
   match defs with
   | [] -> ([], [])
   | (v,d)::defs ->
-    let fvs = fv_a d in
-    if VarSet.inter bvs fvs |> VarSet.is_empty
-    then
-      let (defs, defs') = separate_defs bvs defs in
-      ((v,d)::defs, defs')
-    else
-      let bvs = VarSet.add v bvs in
-      let (defs, defs') = separate_defs bvs defs in
-      (defs, (v,d)::defs')
+     let fvs = fv_a d in
+     if VarSet.inter bvs fvs |> VarSet.is_empty
+     then
+       let (defs, defs') = separate_defs bvs defs in
+       ((v,d)::defs, defs')
+     else
+       let bvs = VarSet.add v bvs in
+       let (defs, defs') = separate_defs bvs defs in
+       (defs, (v,d)::defs')
 
 let filter_expr_map vals em =
   ExprMap.filter (fun _ node ->
-    let v = ExprMap.get_el node in
-    VarSet.mem v vals
-  ) em
+      let v = ExprMap.get_el node in
+      VarSet.mem v vals
+    ) em
 
 exception IsVar of Variable.t
 
@@ -138,13 +138,14 @@ let rec type_of_pat pat =
   | PatType t -> t
   | PatVar _ -> any
   | PatAnd (p1, p2) ->
-    cap (type_of_pat p1) (type_of_pat p2)
+     cap (type_of_pat p1) (type_of_pat p2)
   | PatOr (p1, p2) ->
-    cup (type_of_pat p1) (type_of_pat p2)
+     cup (type_of_pat p1) (type_of_pat p2)
   | PatPair (p1, p2) ->
-    mk_times (type_of_pat p1 |> cons) (type_of_pat p2 |> cons)
+     mk_times (type_of_pat p1 |> cons) (type_of_pat p2 |> cons)
   | PatRecord (fields, o) ->
-    mk_record o (List.map (fun (str, p) -> (str, type_of_pat p |> cons)) fields)
+     mk_record o
+       (List.map (fun (str, p) -> (str, type_of_pat p |> cons)) fields)
   | PatAssign _ -> any
 
 let rec vars_of_pat pat =
@@ -154,15 +155,15 @@ let rec vars_of_pat pat =
   | PatVar x when Variable.equals x dummy_pat_var -> VarSet.empty
   | PatVar x -> VarSet.singleton x
   | PatAnd (p1, p2) ->
-    VarSet.union (vars_of_pat p1) (vars_of_pat p2)
+     VarSet.union (vars_of_pat p1) (vars_of_pat p2)
   | PatOr (p1, p2) ->
-    VarSet.inter (vars_of_pat p1) (vars_of_pat p2)
+     VarSet.inter (vars_of_pat p1) (vars_of_pat p2)
   | PatPair (p1, p2) ->
-    VarSet.union (vars_of_pat p1) (vars_of_pat p2)
+     VarSet.union (vars_of_pat p1) (vars_of_pat p2)
   | PatRecord (fields, _) ->
-    List.fold_left
-      (fun acc (_, p) -> VarSet.union acc (vars_of_pat p))
-      VarSet.empty fields
+     List.fold_left
+       (fun acc (_, p) -> VarSet.union acc (vars_of_pat p))
+       VarSet.empty fields
   | PatAssign (x,_) -> VarSet.singleton x
 
 let rec def_of_var_pat pat v e =
@@ -173,22 +174,22 @@ let rec def_of_var_pat pat v e =
   | PatVar v' when Variable.equals v v' -> e
   | PatVar _ -> assert false
   | PatAnd (p1, p2) ->
-    if vars_of_pat p1 |> VarSet.mem v
-    then def_of_var_pat p1 v e
-    else def_of_var_pat p2 v e
+     if vars_of_pat p1 |> VarSet.mem v
+     then def_of_var_pat p1 v e
+     else def_of_var_pat p2 v e
   | PatPair (p1, p2) ->
-    if vars_of_pat p1 |> VarSet.mem v
-    then def_of_var_pat p1 v (annot, Projection (Fst, e))
-    else def_of_var_pat p2 v (annot, Projection (Snd, e))
+     if vars_of_pat p1 |> VarSet.mem v
+     then def_of_var_pat p1 v (annot, Projection (Fst, e))
+     else def_of_var_pat p2 v (annot, Projection (Snd, e))
   | PatRecord (fields, _) ->
-    let (str, p) =
-      fields |> List.find (fun (_, p) -> vars_of_pat p |> VarSet.mem v)
-    in
-    def_of_var_pat p v (annot, Projection (Field str, e))
+     let (str, p) =
+       fields |> List.find (fun (_, p) -> vars_of_pat p |> VarSet.mem v)
+     in
+     def_of_var_pat p v (annot, Projection (Field str, e))
   | PatOr (p1, p2) ->
-    let case = Ite (e, type_of_pat p1,
-      def_of_var_pat p1 v e, def_of_var_pat p2 v e) in
-    (annot, case)
+     let case = Ite (e, type_of_pat p1,
+                     def_of_var_pat p1 v e, def_of_var_pat p2 v e) in
+     (annot, case)
   | PatAssign (v', c) when Variable.equals v v' -> (annot, Const c)
   | PatAssign _ -> assert false
   | PatType _ -> assert false
@@ -201,41 +202,43 @@ let remove_patterns_and_fixpoints e =
     let e =
       match e with
       | Ast.PatMatch (e, pats) ->
-        let t = pats |> List.map fst |> List.map type_of_pat
-          |> Types.Additions.disj in
-        let body_of_pat pat e' =
-          let vars = vars_of_pat pat in
-          let add_def acc v =
-            let d = def_of_var_pat pat v e in
-            (annot, Ast.Let (v, d, acc))
-          in
-          List.fold_left add_def e' (VarSet.elements vars)
-        in
-        let add_branch acc (t, e') =
-          (annot, Ast.Ite (e, t, e', acc))
-        in
-        let pats = pats |> List.map (fun (pat, e') ->
-          (type_of_pat pat, body_of_pat pat e')) |> List.rev in
-        let body = match pats with
-        | [] -> assert false 
-        | (_, e')::pats -> List.fold_left add_branch e' pats
-        in
-        let x = Variable.create_other None in
-        Variable.attach_location x (Position.position annot) ;
-        Ast.Let (x, (annot, Ast.TypeConstr (e, t)), body)
+         let t = pats |> List.map fst |> List.map type_of_pat
+                 |> Types.Additions.disj in
+         let body_of_pat pat e' =
+           let vars = vars_of_pat pat in
+           let add_def acc v =
+             let d = def_of_var_pat pat v e in
+             (annot, Ast.Let (v, d, acc))
+           in
+           List.fold_left add_def e' (VarSet.elements vars)
+         in
+         let add_branch acc (t, e') =
+           (annot, Ast.Ite (e, t, e', acc))
+         in
+         let pats = pats
+                    |> List.map (fun (pat, e') ->
+                           (type_of_pat pat, body_of_pat pat e'))
+                    |> List.rev in
+         let body = match pats with
+           | [] -> assert false
+           | (_, e')::pats -> List.fold_left add_branch e' pats
+         in
+         let x = Variable.create_other None in
+         Variable.attach_location x (Position.position annot) ;
+         Ast.Let (x, (annot, Ast.TypeConstr (e, t)), body)
       | Ast.Fixpoint e ->
-        let v = Variable.create_other (Some "fixpoint_aux") in
-        aux_defs := (v,e)::(!aux_defs) ;
-        let lhs = (annot, Ast.Var fixpoint_var) in
-        let rhs = (annot, Ast.Var v) in
-        Ast.App (lhs, rhs)
+         let v = Variable.create_other (Some "fixpoint_aux") in
+         aux_defs := (v,e)::(!aux_defs) ;
+         let lhs = (annot, Ast.Var fixpoint_var) in
+         let rhs = (annot, Ast.Var v) in
+         Ast.App (lhs, rhs)
       | e -> e
     in
     (annot, e)
   in
   let res = Ast.map_ast aux e in
   (res, !aux_defs)
-  
+
 let convert_to_msc ast =
   let aux expr_var_map ast =
     let rec to_defs_and_a expr_var_map ast =
@@ -245,57 +248,75 @@ let convert_to_msc ast =
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))
-      else match e with
-      | Ast.Abstract t -> ([], expr_var_map, Abstract t)
-      | Ast.Const c -> ([], expr_var_map, Const c)
-      | Ast.Var v when Variable.is_binding_var v -> raise (IsVar v)
-      | Ast.Var v -> ([], expr_var_map, Alias v)
-      | Ast.Lambda (t, v, e) ->
-        (*let e = aux expr_var_map e in
-        ([], expr_var_map, Lambda (t, v, e))*)
-        (* We try to factorize as much as possible *)
-        let (defs', expr_var_map', x) = to_defs_and_x expr_var_map e in
-        let (defs, defs') =
-          List.rev defs' |>
-          separate_defs (VarSet.singleton v) in
-        let expr_var_map = expr_var_map' |>
-          filter_expr_map (defs |> List.map fst |> VarSet.of_list) in
-        let (defs, defs') = (List.rev defs, List.rev defs') in
-        let e = defs_and_x_to_e defs' x in
-        (defs, expr_var_map, Lambda (t, v, e))
-      | Ast.Ite (e, t, e1, e2) ->
-        let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-        let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
-        let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
-        (defs2@defs1@defs, expr_var_map, Ite (x, t, x1, x2))
-      | Ast.Let (v, e1, e2) ->
-        let name = Variable.get_name v in
-        let (defs1, expr_var_map, x) = to_defs_and_x ~name expr_var_map e1 in
-        let e2 = Ast.substitute e2 v e1 in (* Substitute v by e1 in e2 *)
-        let (defs2, expr_var_map, y) = to_defs_and_x expr_var_map e2 in
-        (defs2@defs1, expr_var_map, Let (x, y))
-      | Ast.App (e1, e2) ->
-        let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
-        let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
-        (defs2@defs1, expr_var_map, App (x1, x2))
-      | Ast.Pair (e1, e2) ->
-        let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
-        let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
-        (defs2@defs1, expr_var_map, Pair (x1, x2))
-      | Ast.Projection (p, e) ->
-        let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-        (defs, expr_var_map, Projection (p, x))
-      | Ast.RecordUpdate (e, str, None) ->
-        let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-        (defs, expr_var_map, RecordUpdate (x, str, None))
-      | Ast.RecordUpdate (e, str, Some e') ->
-        let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-        let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
-        (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
-      | Ast.TypeConstr (e, t) ->
-        let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-        (defs, expr_var_map, TypeConstr (x, t))
-      | Ast.PatMatch _ | Ast.Fixpoint _ -> assert false
+      else
+        match e with
+        | Ast.Abstract t -> ([], expr_var_map, Abstract t)
+        | Ast.Const c -> ([], expr_var_map, Const c)
+        | Ast.Var v when Variable.is_binding_var v -> raise (IsVar v)
+        | Ast.Var v -> ([], expr_var_map, Alias v)
+        | Ast.Lambda (t, v, e) ->
+           (*let e = aux expr_var_map e in
+             ([], expr_var_map, Lambda (t, v, e))*)
+           (* We try to factorize as much as possible *)
+           let (defs', expr_var_map', x) = to_defs_and_x expr_var_map e in
+           let (defs, defs') =
+             List.rev defs' |>
+               separate_defs (VarSet.singleton v) in
+           let expr_var_map = expr_var_map' |>
+                                filter_expr_map
+                                  (defs |> List.map fst |> VarSet.of_list) in
+           let (defs, defs') = (List.rev defs, List.rev defs') in
+           let e = defs_and_x_to_e defs' x in
+           (defs, expr_var_map, Lambda (t, v, e))
+        | Ast.Ite (e, t, e1, e2) ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
+           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
+           (defs2@defs1@defs, expr_var_map, Ite (x, t, x1, x2))
+        | Ast.Let (v, e1, e2) ->
+           let name = Variable.get_name v in
+           let (defs1, expr_var_map, x) = to_defs_and_x ~name expr_var_map e1 in
+           let e2 = Ast.substitute e2 v e1 in (* Substitute v by e1 in e2 *)
+           let (defs2, expr_var_map, y) = to_defs_and_x expr_var_map e2 in
+           (defs2@defs1, expr_var_map, Let (x, y))
+        | Ast.App (e1, e2) ->
+           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
+           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
+           (defs2@defs1, expr_var_map, App (x1, x2))
+        | Ast.Pair (e1, e2) ->
+           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
+           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
+           (defs2@defs1, expr_var_map, Pair (x1, x2))
+        | Ast.Projection (p, e) ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           (defs, expr_var_map, Projection (p, x))
+        | Ast.RecordUpdate (e, str, None) ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           (defs, expr_var_map, RecordUpdate (x, str, None))
+        | Ast.RecordUpdate (e, str, Some e') ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
+           (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
+(*      | Ast.Ref e ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           let create_ref = List.assoc ref_create bvars in
+           (defs, expr_var_map, App (create_ref, x))
+        | Ast.Read e ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           let get_ref = List.assoc ref_get bvars in
+           (defs, expr_var_map, App (get_ref, x))
+        | Ast.Assign (e1, e2) ->
+           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
+           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
+           let set_ref = List.assoc ref_set bvars in
+           let tmp = Variable.create (Some "__assign_tmp") in
+           (* no need to attach location *)
+           ((tmp, App (set_ref, x1))::defs2@defs1, expr_var_map, App (tmp, x2))
+*)
+        | Ast.TypeConstr (e, t) ->
+           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
+           (defs, expr_var_map, TypeConstr (x, t))
+        | Ast.PatMatch _ | Ast.Fixpoint _ -> assert false
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
       let ((_, pos), _) = ast in
@@ -309,15 +330,15 @@ let convert_to_msc ast =
         (defs, expr_var_map, var)
       with IsVar v ->
         (Variable.attach_location v pos ; ([], expr_var_map, v))
-    
+
     and defs_and_x_to_e defs x =
       defs |>
-      List.fold_left (
-        fun nf (v, d) ->
-        Bind (v, d, nf)
-      ) (Var x)
+        List.fold_left (
+            fun nf (v, d) ->
+            Bind (v, d, nf)
+          ) (Var x)
     in
-    
+
     let (defs, _, x) = to_defs_and_x expr_var_map ast in
     defs_and_x_to_e defs x
 

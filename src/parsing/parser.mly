@@ -12,9 +12,9 @@
       match pat with
       | PatVar v -> annot startpos endpos (Lambda (annotation, v, acc))
       | pat ->
-        let test = annot startpos endpos (Var tmp_var) in
-        let body = annot startpos endpos (PatMatch (test, [(pat, acc)])) in
-        annot startpos endpos (Lambda (annotation, tmp_var, body))
+         let test = annot startpos endpos (Var tmp_var) in
+         let body = annot startpos endpos (PatMatch (test, [(pat, acc)])) in
+         annot startpos endpos (Lambda (annotation, tmp_var, body))
     in
     List.rev lst |> List.fold_left step t
 
@@ -27,17 +27,18 @@
     let rec aux lst =
       match lst with
       | [] ->
-        begin match oty with
-        | None -> TVar (fresh_infer_tvar_id ())
-        | Some ty -> ty
-        end
+         begin match oty with
+         | None -> TVar (fresh_infer_tvar_id ())
+         | Some ty -> ty
+         end
       | (Unnanoted, _)::lst -> TArrow (TVar (fresh_infer_tvar_id ()), aux lst)
       | (ADomain tys, _)::lst ->
-          let arrows = tys |> List.map (fun ty -> TArrow (ty, aux lst)) in
-          begin match arrows with
-          | [] -> assert false
-          | arrow::arrows -> List.fold_left (fun acc elt -> TCap (acc, elt)) arrow arrows
-          end
+         let arrows = tys |> List.map (fun ty -> TArrow (ty, aux lst)) in
+         begin match arrows with
+         | [] -> assert false
+         | arrow::arrows -> List.fold_left (fun acc elt -> TCap (acc, elt))
+                              arrow arrows
+         end
     in
     let self_annot = aux lst in
     let lst = (ADomain [self_annot], PatVar name)::lst in
@@ -56,14 +57,14 @@
   let rec list_of_elts startpos endpos = function
     | [] -> annot startpos endpos (Const Nil)
     | x::xs ->
-    let left = x in let right = list_of_elts startpos endpos xs in
-    annot startpos endpos (Pair (left,right))
+       let left = x in let right = list_of_elts startpos endpos xs in
+                       annot startpos endpos (Pair (left,right))
 
   let rec record_update startpos endpos base = function
     | [] -> base
     | (label,e)::fields ->
-      let base = annot startpos endpos (RecordUpdate (base, label, Some e)) in
-      record_update startpos endpos base fields
+       let base = annot startpos endpos (RecordUpdate (base, label, Some e)) in
+       record_update startpos endpos base fields
 
 %}
 
@@ -71,8 +72,9 @@
 %token FUN LET REC IN FST SND DEBUG
 %token IF IS THEN ELSE
 %token LPAREN RPAREN EQUAL COMMA COLON INTERROGATION_MARK
+(* %token BANG COLONEQ REF *)
 %token ARROW AND OR NEG DIFF
-%token ANY EMPTY BOOL CHAR FLOAT INT TRUE FALSE UNIT NIL STRING LIST
+%token ANY EMPTY BOOL CHAR FLOAT INT TRUE FALSE UNIT NIL STRING LIST (* TREF *)
 %token DOUBLEDASH TIMES PLUS MINUS DIV
 %token LBRACE RBRACE DOUBLEPOINT MATCH WITH END EQUAL_OPT POINT LT GT
 %token ATOMS TYPE TYPE_AND DOUBLE_OR (*DOUBLE_AND*)
@@ -96,6 +98,7 @@
 %right ARROW
 %left OR
 %left AND
+(* %left COLONEQ *)
 %nonassoc DIFF
 %nonassoc NEG
 
@@ -109,13 +112,13 @@ element:
   i=optional_debug LET id=generalized_identifier COLON ty=typ EQUAL t=term
   { annot $symbolstartpos $endpos (Definition (i, (id, t, Some ty))) }
 | i=optional_debug LET gioa=gen_id_opt_annot ais=parameter* EQUAL t=term
-  { 
+  {
     let (id, ty) = gioa in
     let t = multi_param_abstraction $startpos $endpos ais t in
     annot $symbolstartpos $endpos (Definition (i, (id, t, ty)))
   }
 | i=optional_debug LET REC gioa=gen_id_opt_annot ais=parameter* oty=optional_typ EQUAL t=term
-  { 
+  {
     let (id, ty) = gioa in
     let t = multi_param_rec_abstraction $startpos $endpos id ais oty t in
     annot $symbolstartpos $endpos (Definition (i, (id, t, ty)))
@@ -154,7 +157,7 @@ term:
   }
 // NOTE: Disabled because fixpoints are only available at top-level (for now)
 // | LET REC id=generalized_identifier ais=parameter* oty=optional_typ EQUAL td=term IN t=term
-//   { 
+//   {
 //     let td = multi_param_rec_abstraction $startpos $endpos id ais oty td in
 //     annot $symbolstartpos $endpos (Let (id, td, t))
 //   }
@@ -162,6 +165,9 @@ term:
 | IF t=term ott=optional_test_type THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,ott,t1,t2)) }
 | MATCH t=term WITH pats=patterns END { annot $startpos $endpos (PatMatch (t,pats)) }
 | lhs=simple_term COMMA rhs=term { annot $startpos $endpos (Pair (lhs, rhs)) }
+// | REF t=term { annot $startpos $endpos (Ref t) }
+// | BANG t=term { annot $startpos $endpos (Read t) }
+// | r=term COLONEQ t=term { annot $startpos $endpos (Assign (r,t)) }
 
 simple_term:
   a=atomic_term { a }

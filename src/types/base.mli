@@ -1,4 +1,3 @@
-
 module CD = Cduce_types
 
 type typ = CD.Types.t
@@ -19,6 +18,8 @@ val any : typ
 val empty : typ
 val any_node : node
 val empty_node : node
+(*val any_ref : typ
+val any_ref_node : node*)
 
 val true_typ : typ
 val false_typ : typ
@@ -85,3 +86,10 @@ val non_empty: typ -> bool
 val subtype  : typ -> typ -> bool
 val disjoint : typ -> typ -> bool
 val equiv : typ -> typ -> bool
+
+(*val fun_create_ref : typ
+val fun_create_ref_node : node
+val fun_get_ref : typ
+val fun_get_ref_node : node
+val fun_set_ref : typ
+val fun_set_ref_node : node *)

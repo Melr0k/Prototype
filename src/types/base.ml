@@ -1,4 +1,3 @@
-
 module CD = Cduce_types
 module LabelSet = CD.Ident.LabelSet
 module LabelMap = CD.Ident.LabelMap
@@ -6,7 +5,7 @@ module LabelMap = CD.Ident.LabelMap
 type typ = CD.Types.t
 type node = CD.Types.Node.t
 
-let register s = 
+let register s =
   let module U = Encodings.Utf8 in
   CD.Types.Print.register_global "" (Ns.Uri.mk (U.mk ""), U.mk s) ?params:None
 let dump_typ = CD.Types.dump
@@ -24,6 +23,8 @@ let any = CD.Types.any
 let empty = CD.Types.empty
 let any_node = cons any
 let empty_node = cons empty
+(*let any_ref = CD.Builtin_defs.ref_type any_node
+let any_ref_node = cons any_ref*)
 
 (* ----- *)
 
@@ -44,10 +45,10 @@ let neg_ext t =
 
 (* NOTE: arrow types are not automatically simplified by Cduce,
    thus we avoid useless cap\cup in order to keep simple types *)
-let cup_o t1 t2 = if subtype t1 t2 then t2
-else if subtype t2 t1 then t1 else CD.Types.cup t1 t2
-let cap_o t1 t2 = if subtype t1 t2 then t1
-else if subtype t2 t1 then t2 else CD.Types.cap t1 t2
+let cup_o t1 t2 =
+  if subtype t1 t2 then t2 else if subtype t2 t1 then t1 else CD.Types.cup t1 t2
+let cap_o t1 t2 =
+  if subtype t1 t2 then t1 else if subtype t2 t1 then t2 else CD.Types.cap t1 t2
 let diff_o t1 t2 = cap_o t1 (neg_ext t2)
 
 (* ----- *)
@@ -58,7 +59,7 @@ let from_label lbl = CD.Ident.Label.get_ascii lbl
 (* ----- *)
 
 let mk_atom ascii_name =
-    ascii_name |> CD.AtomSet.V.mk_ascii |> CD.AtomSet.atom |> CD.Types.atom
+  ascii_name |> CD.AtomSet.V.mk_ascii |> CD.AtomSet.atom |> CD.Types.atom
 let true_typ = CD.Builtin_defs.true_type
 let false_typ = CD.Builtin_defs.false_type
 let bool_typ = cup true_typ false_typ
@@ -84,7 +85,7 @@ let list_typ =
 
 let interval i1 i2 =
   match i1, i2 with
-  | Some i1, Some i2 -> 
+  | Some i1, Some i2 ->
     let i1 = CD.Intervals.V.from_int i1 in
     let i2 = CD.Intervals.V.from_int i2 in
     let i = CD.Intervals.bounded i1 i2 in
@@ -99,7 +100,7 @@ let interval i1 i2 =
     CD.Types.interval i
   | None, None ->
     CD.Types.Int.any
-    
+
 let single_char c =
   let c = CD.CharSet.V.mk_char c in
   let c = CD.CharSet.atom c in
@@ -107,33 +108,33 @@ let single_char c =
 
 let single_string str =
   let rev_str =
-    String.to_seq str |>
-    Seq.fold_left (
-      fun acc c ->
-        c::acc
-    ) []
+    String.to_seq str
+    |> Seq.fold_left (
+           fun acc c ->
+           c::acc
+         ) []
   in
   List.fold_left (
-    fun acc c ->
+      fun acc c ->
       CD.Types.times (single_char c |> cons) (cons acc)
-  ) nil_typ rev_str
+    ) nil_typ rev_str
 
 (*
 let list_of alpha =
-    let alpha_list = CD.Types.make () in
-    let cons = CD.Types.times (cons alpha) alpha_list in
-    let union = CD.Types.cup nil_typ cons in
-    CD.Types.define alpha_list union ;
-    descr alpha_list
+  let alpha_list = CD.Types.make () in
+  let cons = CD.Types.times (cons alpha) alpha_list in
+  let union = CD.Types.cup nil_typ cons in
+  CD.Types.define alpha_list union ;
+  descr alpha_list
 *)
 
 (*
 let single_list lst =
-  List.rev lst |>
-  List.fold_left (
-    fun acc t ->
-      CD.Types.times (cons t) (cons acc)
-  ) nil_typ
+  List.rev lst
+  |> List.fold_left (
+          fun acc t ->
+          CD.Types.times (cons t) (cons acc)
+        ) nil_typ
 *)
 
 let mk_new_typ = CD.Types.make
@@ -165,9 +166,11 @@ let mk_record is_open fields =
   CD.Types.record_fields (is_open, fields)
 
 let record_dnf t =
-  CD.Types.Record.get t |> List.map (fun (map, o, _) ->
-    let map = LabelMap.get map |> List.map (fun (l, t) -> (from_label l, t)) in
-    (map, o)
+  CD.Types.Record.get t
+  |> List.map (fun (map, o, _) ->
+         let map = LabelMap.get map
+                   |> List.map (fun (l, t) -> (from_label l, t)) in
+         (map, o)
   )
 let record_any = CD.Types.Rec.any
 
@@ -198,7 +201,8 @@ let merge_records = CD.Types.Record.merge
 let remove_field record field =
   CD.Types.Record.remove_field record (to_label field)
 
-(* Maybe not optimised (if no memoisation for Arrow.get). We'll see that later. *)
+(* Maybe not optimised (if no memoisation for Arrow.get). We'll see that
+   later. *)
 let mk_arrow = CD.Types.arrow
 
 let arrow_any = CD.Types.Function.any
@@ -215,3 +219,12 @@ let apply t args =
 
 let dnf t =
   snd (CD.Types.Arrow.get t)
+
+(* (* References *)
+let fun_create_ref = mk_arrow any_node any_ref_node
+let fun_create_ref_node = cons fun_create_ref
+let fun_get_ref = mk_arrow any_ref_node any_node
+let fun_get_ref_node = cons fun_get_ref
+let fun_set_ref =
+  mk_arrow any_ref_node (cons (mk_arrow any_node (cons unit_typ)))
+let fun_set_ref_node = cons fun_set_ref *)
