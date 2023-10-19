@@ -22,9 +22,9 @@ exception IncompatibleType of typ
 let type_check_def tenv env (var,expr,typ_annot) =
   let time0 = Unix.gettimeofday () in
   let (expr, addition) = Msc.remove_patterns_and_fixpoints expr in
-  let nf_expr = Msc.convert_to_msc expr in
+  let nf_expr = Msc.convert_to_msc [] expr in (* TODO builtin_vars *)
   let nf_addition =
-    addition |> List.map (fun (v,e) -> v, Msc.convert_to_msc e) in
+    addition |> List.map (fun (v,e) -> v, Msc.convert_to_msc [] e) in (* TODO *)
   let time1 = Unix.gettimeofday () in
   let retrieve_times () =
     let time2 = Unix.gettimeofday () in
@@ -81,6 +81,9 @@ let builtin_functions =
   ; ("*", arith_operators_typ)
   ; ("/", arith_operators_typ)
   ; ("%", arith_operators_typ)
+  ; (ref_create, fun_create_ref_typ)
+  ; (ref_get   , fun_get_ref_typ)
+  ; (ref_set   , fun_set_ref_typ)
   ]
 
 let initial_varm =

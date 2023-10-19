@@ -62,6 +62,7 @@ module VarSet = Set.Make(Variable)
 
 type builtin_vars = (string * VarSet.elt) list
 
-let ref_create = "__create_ref"
-let ref_get = "__get_ref"
-let ref_set = "__set_ref"
+let ref_create = "__create_ref "
+let ref_get = "__get_ref "
+let ref_set = "__set_ref "
+let ref_set_tmp = "__assign_tmp "

@@ -23,3 +23,4 @@ type builtin_vars = (string * VarSet.elt) list (* name, var *)
 val ref_create : string
 val ref_get : string
 val ref_set : string
+val ref_set_tmp : string

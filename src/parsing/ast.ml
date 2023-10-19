@@ -51,9 +51,9 @@ and ('a, 'typ, 'v) ast =
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
-(*| Ref of ('a, 'typ, 'v) t
+  | Ref of ('a, 'typ, 'v) t
   | Read of ('a, 'typ, 'v) t
-  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t *)
+  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | TypeConstr of ('a, 'typ, 'v) t * 'typ
   | PatMatch of ('a, 'typ, 'v) t
                 * (('a, 'typ, 'v) pattern * ('a, 'typ, 'v) t) list
@@ -166,9 +166,9 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | Projection (p, e) -> Projection (p, aux vtenv env e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Option.map (aux vtenv env) e2)
-(*    | Ref e -> Ref (aux vtenv env e)
+      | Ref e -> Ref (aux vtenv env e)
       | Read e -> Read (aux vtenv env e)
-      | Assign (e1,e2) -> Assign (aux vtenv env e1, aux vtenv env e2) *)
+      | Assign (e1,e2) -> Assign (aux vtenv env e1, aux vtenv env e2)
       | TypeConstr (e, t) ->
          let (t, vtenv) = type_expr_to_typ tenv vtenv t in
          if is_test_type t
@@ -277,9 +277,9 @@ let rec unannot (_,e) =
     | Projection (p, e) -> Projection (p, unannot e)
     | RecordUpdate (e1, l, e2) ->
        RecordUpdate (unannot e1, l, Option.map unannot e2)
-(*  | Ref e -> Ref (unannot e)
+    | Ref e -> Ref (unannot e)
     | Read e -> Read (unannot e)
-    | Assign (e1, e2) -> Assign (unannot e1, unannot e2) *)
+    | Assign (e1, e2) -> Assign (unannot e1, unannot e2)
     | TypeConstr (e, t) -> TypeConstr (unannot e, t)
     | PatMatch (e, pats) ->
        PatMatch (unannot e
@@ -335,9 +335,9 @@ let normalize_bvs e =
       | Projection (p, e) -> Projection (p, aux depth map e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux depth map e1, l, Option.map (aux depth map) e2)
-(*    | Ref e -> Ref (aux depth map e)
+      | Ref e -> Ref (aux depth map e)
       | Read e -> Ref (aux depth map e)
-      | Assign (e1,e2) -> Assign (aux depth map e1, aux depth map e2) *)
+      | Assign (e1,e2) -> Assign (aux depth map e1, aux depth map e2)
       | TypeConstr (e, t) -> TypeConstr (aux depth map e, t)
       | PatMatch (e, pats) ->
          let e = aux depth map e in
@@ -391,9 +391,9 @@ let map_ast f e =
       | Projection (p, e) -> Projection (p, aux e)
       | RecordUpdate (e, str, eo) ->
          RecordUpdate (aux e, str, Option.map aux eo)
-(*    | Ref e -> Ref (aux e)
+      | Ref e -> Ref (aux e)
       | Read e -> Read (aux e)
-      | Assign (e1, e2) -> Assign (aux e1, aux e2) *)
+      | Assign (e1, e2) -> Assign (aux e1, aux e2)
       | TypeConstr (e, t) -> TypeConstr (aux e, t)
       | PatMatch (e, pats) ->
          let pats = pats |> List.map (fun (p,e) -> (aux_p p, aux e)) in

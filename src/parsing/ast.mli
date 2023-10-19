@@ -47,12 +47,12 @@ and ('a, 'typ, 'v) ast =
   | Pair of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | Projection of projection * ('a, 'typ, 'v) t
   | RecordUpdate of ('a, 'typ, 'v) t * string * ('a, 'typ, 'v) t option
+  | Ref of ('a, 'typ, 'v) t
+  | Read of ('a, 'typ, 'v) t
+  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t
   | TypeConstr of ('a, 'typ, 'v) t * 'typ
   | PatMatch of ('a, 'typ, 'v) t
                 * (('a, 'typ, 'v) pattern * ('a, 'typ, 'v) t) list
-(*| Ref of ('a, 'typ, 'v) t
-  | Read of ('a, 'typ, 'v) t
-  | Assign of ('a, 'typ, 'v) t * ('a, 'typ, 'v) t *)
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 

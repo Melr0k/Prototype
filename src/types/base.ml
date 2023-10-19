@@ -23,8 +23,8 @@ let any = CD.Types.any
 let empty = CD.Types.empty
 let any_node = cons any
 let empty_node = cons empty
-(*let any_ref = CD.Builtin_defs.ref_type any_node
-let any_ref_node = cons any_ref*)
+let any_ref = CD.Builtin_defs.ref_type any_node
+let any_ref_node = cons any_ref
 
 (* ----- *)
 
@@ -220,11 +220,11 @@ let apply t args =
 let dnf t =
   snd (CD.Types.Arrow.get t)
 
-(* (* References *)
-let fun_create_ref = mk_arrow any_node any_ref_node
-let fun_create_ref_node = cons fun_create_ref
-let fun_get_ref = mk_arrow any_ref_node any_node
-let fun_get_ref_node = cons fun_get_ref
-let fun_set_ref =
+(* References *)
+let fun_create_ref_typ = mk_arrow any_node any_ref_node
+let fun_create_ref_node = cons fun_create_ref_typ
+let fun_get_ref_typ = mk_arrow any_ref_node any_node
+let fun_get_ref_node = cons fun_get_ref_typ
+let fun_set_ref_typ =
   mk_arrow any_ref_node (cons (mk_arrow any_node (cons unit_typ)))
-let fun_set_ref_node = cons fun_set_ref *)
+let fun_set_ref_node = cons fun_set_ref_typ
