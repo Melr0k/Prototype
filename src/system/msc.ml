@@ -239,7 +239,7 @@ let remove_patterns_and_fixpoints e =
   let res = Ast.map_ast aux e in
   (res, !aux_defs)
 
-let convert_to_msc bvars ast =
+let convert_to_msc ast =
   let aux expr_var_map ast =
     let rec to_defs_and_a expr_var_map ast =
       let (_, e) = ast in
@@ -297,25 +297,11 @@ let convert_to_msc bvars ast =
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
            let (defs', expr_var_map, x') = to_defs_and_x expr_var_map e' in
            (defs'@defs, expr_var_map, RecordUpdate (x, str, Some x'))
-        | Ast.Ref e ->
-           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-           let create_ref = List.assoc ref_create bvars in
-           (defs, expr_var_map, App (create_ref, x))
-        | Ast.Read e ->
-           let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
-           let get_ref = List.assoc ref_get bvars in
-           (defs, expr_var_map, App (get_ref, x))
-        | Ast.Assign (e1, e2) ->
-           let (defs1, expr_var_map, x1) = to_defs_and_x expr_var_map e1 in
-           let (defs2, expr_var_map, x2) = to_defs_and_x expr_var_map e2 in
-           let set_ref = List.assoc ref_set bvars in
-           let tmp = Variable.create_binding (Some ref_set_tmp) in
-           (* no need to attach location *)
-           ((tmp, App (set_ref, x1))::defs2@defs1, expr_var_map, App (tmp, x2))
         | Ast.TypeConstr (e, t) ->
            let (defs, expr_var_map, x) = to_defs_and_x expr_var_map e in
            (defs, expr_var_map, TypeConstr (x, t))
-        | Ast.PatMatch _ | Ast.Fixpoint _ -> assert false
+        | Ast.Ref _ | Ast.Read _ | Ast.Assign _
+          | Ast.PatMatch _ | Ast.Fixpoint _ -> assert false
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
       let ((_, pos), _) = ast in

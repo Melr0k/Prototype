@@ -166,9 +166,16 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | Projection (p, e) -> Projection (p, aux vtenv env e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Option.map (aux vtenv env) e2)
-      | Ref e -> Ref (aux vtenv env e)
-      | Read e -> Read (aux vtenv env e)
-      | Assign (e1,e2) -> Assign (aux vtenv env e1, aux vtenv env e2)
+      | Ref e ->
+         let ref_t = (exprid,pos), Var (StrMap.find Variable.ref_create env) in
+         App (ref_t, aux vtenv env e)
+      | Read e ->
+         let get_t = (exprid,pos), Var (StrMap.find Variable.ref_get env) in
+         App (get_t, aux vtenv env e)
+      | Assign (e1,e2) ->
+         let set_t = (exprid,pos), Var (StrMap.find Variable.ref_set env) in
+         let tmp_t = (exprid,pos), App (set_t, aux vtenv env e1) in
+         App (tmp_t, aux vtenv env e2)
       | TypeConstr (e, t) ->
          let (t, vtenv) = type_expr_to_typ tenv vtenv t in
          if is_test_type t
@@ -277,9 +284,7 @@ let rec unannot (_,e) =
     | Projection (p, e) -> Projection (p, unannot e)
     | RecordUpdate (e1, l, e2) ->
        RecordUpdate (unannot e1, l, Option.map unannot e2)
-    | Ref e -> Ref (unannot e)
-    | Read e -> Read (unannot e)
-    | Assign (e1, e2) -> Assign (unannot e1, unannot e2)
+    | Ref _ | Read _ | Assign _ -> assert false
     | TypeConstr (e, t) -> TypeConstr (unannot e, t)
     | PatMatch (e, pats) ->
        PatMatch (unannot e
@@ -335,9 +340,7 @@ let normalize_bvs e =
       | Projection (p, e) -> Projection (p, aux depth map e)
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux depth map e1, l, Option.map (aux depth map) e2)
-      | Ref e -> Ref (aux depth map e)
-      | Read e -> Ref (aux depth map e)
-      | Assign (e1,e2) -> Assign (aux depth map e1, aux depth map e2)
+      | Ref _ | Read _ | Assign _ -> assert false
       | TypeConstr (e, t) -> TypeConstr (aux depth map e, t)
       | PatMatch (e, pats) ->
          let e = aux depth map e in

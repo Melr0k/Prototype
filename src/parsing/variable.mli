@@ -13,14 +13,11 @@ module Variable : sig
   val is_binding_var : t -> bool
   val is_lambda_var : t -> bool
   val get_name : t -> string option
+
+  val ref_create : string
+  val ref_get : string
+  val ref_set : string
 end
 
 module VarMap : Map.S with type key=Variable.t
 module VarSet : Set.S with type elt=Variable.t
-
-type builtin_vars = (string * VarSet.elt) list (* name, var *)
-
-val ref_create : string
-val ref_get : string
-val ref_set : string
-val ref_set_tmp : string
