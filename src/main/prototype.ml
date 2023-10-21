@@ -6,7 +6,7 @@ let () =
   try
     let fn = ref "test.ml" in
     if Array.length Sys.argv > 1 then fn := Sys.argv.(1) ;
-    match parse_and_resolve (`File !fn) initial_varm with
+    match parse_and_resolve (`File !fn) initial_varm initial_penv with
     | PSuccess (tenv, lst) ->
        let time1 = Unix.gettimeofday () in
        List.fold_left (fun env (ll, (v, e, ta)) ->

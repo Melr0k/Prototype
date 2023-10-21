@@ -73,35 +73,47 @@ type parsing_result =
 
 let builtin_functions =
   let open Variable in
-  let arith_operators_typ =
+  let arith_operators_typ, arith_unary_op_typ =
     let int = cons int_typ in
-    mk_arrow int (mk_arrow int int |> cons)
+    let arith_u_op = mk_arrow int int in
+     mk_arrow int (arith_u_op |> cons)
+    ,arith_u_op
   in
-  [ ("+", arith_operators_typ)
-  ; ("-", arith_operators_typ)
-  ; ("*", arith_operators_typ)
-  ; ("/", arith_operators_typ)
-  ; ("%", arith_operators_typ)
-  ; (ref_create, fun_create_ref_typ)
-  ; (ref_get   , fun_get_ref_typ)
-  ; (ref_set   , fun_set_ref_typ)
+  [ ("+"       , arith_operators_typ, Ast.pure)
+  ; ("-"       , arith_operators_typ, Ast.pure)
+  ; ("*"       , arith_operators_typ, Ast.pure)
+  ; ("/"       , arith_operators_typ, Ast.pure)
+  ; ("%"       , arith_operators_typ, Ast.pure)
+  ; ("succ"    , arith_unary_op_typ , Ast.pure)
+  ; (ref_create, fun_create_ref_typ , Ast.n_pure)
+  ; (ref_get   , fun_get_ref_typ    , Ast.n_pure)
+  ; (ref_set   , fun_set_ref_typ    , Ast.n_pure)
   ]
 
 let initial_varm =
   builtin_functions
-  |> List.fold_left (fun varm (name, _) ->
+  |> List.fold_left (fun varm (name, _, _) ->
          let var = Variable.create_other (Some name) in
          StrMap.add name var varm
        ) Ast.empty_name_var_map
 
 let initial_env =
   builtin_functions
-  |> List.fold_left (fun env (name, t) ->
+  |> List.fold_left (fun env (name, t, _) ->
          let var = StrMap.find name initial_varm in
          Env.add var t env
        ) Msc.initial_env
 
-let parse_and_resolve f varm =
+let initial_penv =
+  let open Ast in
+  builtin_functions
+  |> List.fold_left (fun penv (name, _, se) ->
+         if se = pure
+         then PureEnv.add name penv
+         else penv
+       ) PureEnv.empty
+
+let parse_and_resolve f varm penv =
   let last_pos = ref Position.dummy in
   try
     let ast =
@@ -109,7 +121,7 @@ let parse_and_resolve f varm =
       | `File fn -> parse_program_file fn
       | `String s -> parse_program_string s
     in
-    let treat_elem (tenv,varm,defs) (annot, elem) =
+    let treat_elem (tenv,varm,penv,defs) (annot, elem) =
       last_pos := Position.position annot ;
       match elem with
       | Ast.Definition (log, (name, expr, tyo)) ->
@@ -118,20 +130,24 @@ let parse_and_resolve f varm =
            | Some expr -> let (t, _) = type_expr_to_typ tenv empty_vtenv expr in
                           Some t
          in
-         let expr = Ast.parser_expr_to_annot_expr tenv empty_vtenv varm expr in
+         let expr = Ast.parser_expr_to_annot_expr
+                      tenv empty_vtenv varm penv expr in
          let var = Variable.create_other (Some name) in
          Variable.attach_location var (Position.position annot) ;
+         let penv = if Ast.is_pure expr
+                    then Ast.PureEnv.add name penv
+                    else penv in
          let varm = StrMap.add name var varm in
-         (tenv,varm,(log,(var,expr,tyo))::defs)
+         (tenv,varm,penv,(log,(var,expr,tyo))::defs)
       | Ast.Atoms lst ->
          let tenv = List.fold_left define_atom tenv lst in
-         (tenv,varm,defs)
+         (tenv,varm,penv,defs)
       | Ast.Types lst ->
          let (tenv, _) = define_types tenv empty_vtenv lst in
-         (tenv,varm,defs)
+         (tenv,varm,penv,defs)
     in
-    let (tenv, _, defs) =
-      List.fold_left treat_elem (empty_tenv, varm, []) ast in
+    let (tenv, _, _, defs) =
+      List.fold_left treat_elem (empty_tenv, varm, penv, []) ast in
     PSuccess (tenv, List.rev defs)
   with
   | Ast.LexicalError(pos, msg) -> PFailure (pos, msg)

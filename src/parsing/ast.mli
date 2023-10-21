@@ -56,14 +56,14 @@ and ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-(*
 type se = bool * bool (* side effects : (expr, app) *)
 type st_env = se VarMap.t (* var -> stable *)
-*)
 
-type parser_expr = (annotation           , type_expr, varname   ) t
-type annot_expr  = (annotation (* * se *), typ      , Variable.t) t
-type expr        = (unit       (* * se *), typ      , Variable.t) t
+module PureEnv : Set.S with type elt = string
+
+type parser_expr = (annotation     , type_expr, varname   ) t
+type annot_expr  = (annotation * se, typ      , Variable.t) t
+type expr        = (unit       * se, typ      , Variable.t) t
 
 module Expr : Pomap_intf.PARTIAL_ORDER with type el = expr
 module ExprMap : Pomap_intf.POMAP with type key = expr
@@ -76,9 +76,10 @@ val identifier_of_expr : (annotation, 'a, 'b) t -> exprid
 val position_of_expr : (annotation, 'a, 'b) t -> Position.t
 
 (* side-effects... *)
-(*
-val is_pure : expr -> bool (* fst e |> fst *)
- *)
+val is_pure : (('a * se), 'b, 'c) t -> bool (* fst e |> fst *)
+val pure : se
+val n_pure : se
+val const_se : se
 
 val new_annot : Position.t -> annotation
 val copy_annot : annotation -> annotation
@@ -86,7 +87,8 @@ val copy_annot : annotation -> annotation
 val dummy_pat_var : Variable.t
 
 val parser_expr_to_annot_expr :
-  type_env -> var_type_env -> name_var_map -> parser_expr -> annot_expr
+  type_env -> var_type_env -> name_var_map -> PureEnv.t
+  -> parser_expr -> annot_expr
 
 (*val unannot : annot_expr -> expr*)
 val unannot_and_normalize : annot_expr -> expr

@@ -61,21 +61,22 @@ and ('a, 'typ, 'v) ast =
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 
-(*
 type se = bool * bool (* side effects : (expr, app) *)
 type st_env = se VarMap.t (* var -> stable *)
-*)
 
-type parser_expr  = (annotation           , type_expr, varname   ) t
-type annot_expr   = (annotation (* * se *), typ      , Variable.t) t
-type expr         = (unit       (* * se *), typ      , Variable.t) t
+module PureEnv = Set.Make(String)
+
+type parser_expr  = (annotation     , type_expr, varname   ) t
+(* type se_expr      = (annotation * se, type_expr, varname   ) t *)
+type annot_expr   = (annotation * se, typ      , Variable.t) t
+type expr         = (unit       * se, typ      , Variable.t) t
 
 module Expr = struct
   type el = expr
   type ord = Unknown | Lower | Equal | Greater
   let compare t1 t2 =
     let cstruct = compare
-                    (fun () () -> 0)
+                    (fun ((),_) ((),_) -> 0)
                     (fun _ _ -> 0)
                     Variable.compare t1 t2
     in match cstruct with
@@ -84,7 +85,7 @@ module Expr = struct
        | 0 ->
           begin try
               let cexact =
-                compare (fun () () -> 0)
+                compare (fun ((),_) ((),_) -> 0)
                   Types.Compare.compare_typ
                   Variable.compare t1 t2 in
               match cexact with
@@ -111,6 +112,66 @@ let unique_exprid =
 let identifier_of_expr (a,_) = Position.value a
 let position_of_expr (a,_) = Position.position a
 
+let is_pure e =
+  let b,b' = fst e |> snd in
+  b && b'
+let pure = (true, true)
+let n_pure = (false, false)
+let const_se = (true, false)
+
+let parser_expr_to_se_expr penv e =
+  let rec aux penv (a,e) =
+    let se,e = match e with
+      | Abstract t -> pure, Abstract t
+      | Const c -> const_se, Const c
+      | Var v ->
+         (if PureEnv.mem v penv
+          then pure
+          else const_se )
+        , Var v
+      | Lambda (t, v, e) ->
+         let penv = PureEnv.remove v penv in
+         let (_,(b,_)),_ as e= aux penv e in
+         ( (false, b)
+         , Lambda (t, v, e) )
+      | Fixpoint e ->
+         let (_,se),_ as e = aux penv e in
+         se, Fixpoint e
+      | Ite (e, t, e1, e2) ->
+         let (_,(b,_   )),_ as e  = aux penv e in
+         let (_,(b1,b1')),_ as e1 = aux penv e1 in
+         let (_,(b2,b2')),_ as e2 = aux penv e2 in
+         ( (b&&b1&&b2, b1'&&b2')
+         , Ite (e, t, e1, e2) )
+      | App (e1, e2) ->
+         let (_,(b1,b1')),_ as e1 = aux penv e1 in
+         let (_,(b2,_  )),_ as e2 = aux penv e2 in
+         ( (b1&&b1'&&b2, false)
+         , App (e1, e2) )
+      | Let (v, e1, e2) ->
+         let (_,(b1,b1')),_ as e1 = aux penv e1 in
+         let penv = if b1 && b1'
+                    then PureEnv.add v penv
+                    else penv in
+         let (_,(b2,b2')),_ as e2 = aux penv e2 in
+         ( (b1&&b2, b1'&&b2')
+         , Let (v, e1, e2))
+      | Pair (e1, e2)  -> ignore (e1,e2); failwith "TODO"
+      | Projection (p, e) -> ignore (p,e); failwith "TODO"
+      | RecordUpdate (e1, l, e2)  -> ignore (e1,l,e2); failwith "TODO"
+      | Ref e -> ignore e; failwith "TODO"
+      | Read e -> ignore e; failwith "TODO"
+      | Assign (e1,e2) -> ignore (e1,e2); failwith "TODO"
+      | TypeConstr (e,t) -> ignore (e,t); failwith "TODO"
+      | PatMatch (e,pats) -> ignore (e,pats); failwith "TODO"
+    in
+    ((a,se),e)
+  and aux_pat penv (_,e) = match e with
+    | _ -> ignore (penv,e); failwith "TODO"
+  in
+  ignore (aux_pat penv e);
+  aux penv e
+
 let new_annot p =
   Position.with_pos p (unique_exprid ())
 
@@ -121,8 +182,8 @@ let dummy_pat_var_str = "_"
 let dummy_pat_var =
   Variable.create_other (Some dummy_pat_var_str)
 
-let parser_expr_to_annot_expr tenv vtenv name_var_map e =
-  let rec aux vtenv env ((exprid,pos),e) =
+let se_expr_to_annot_expr tenv vtenv name_var_map e =
+  let rec aux vtenv env (((exprid,pos),se),e) =
     let e = match e with
       | Abstract t ->
          let (t, _) = type_expr_to_typ tenv vtenv t in
@@ -167,14 +228,18 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | RecordUpdate (e1, l, e2) ->
          RecordUpdate (aux vtenv env e1, l, Option.map (aux vtenv env) e2)
       | Ref e ->
-         let ref_t = (exprid,pos), Var (StrMap.find Variable.ref_create env) in
+         let ref_t = ((exprid,pos),se)
+                   , Var (StrMap.find Variable.ref_create env) in
          App (ref_t, aux vtenv env e)
       | Read e ->
-         let get_t = (exprid,pos), Var (StrMap.find Variable.ref_get env) in
+         let get_t = ((exprid,pos),se)
+                   , Var (StrMap.find Variable.ref_get env) in
          App (get_t, aux vtenv env e)
       | Assign (e1,e2) ->
-         let set_t = (exprid,pos), Var (StrMap.find Variable.ref_set env) in
-         let tmp_t = (exprid,pos), App (set_t, aux vtenv env e1) in
+         let set_t = ((exprid,pos),se)
+                   , Var (StrMap.find Variable.ref_set env) in
+         let tmp_t = ((exprid,pos),se)
+                   , App (set_t, aux vtenv env e1) in
          App (tmp_t, aux vtenv env e2)
       | TypeConstr (e, t) ->
          let (t, vtenv) = type_expr_to_typ tenv vtenv t in
@@ -185,7 +250,7 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
       | PatMatch (e, pats) ->
          PatMatch (aux vtenv env e, List.map (aux_pat pos vtenv env) pats)
     in
-    ((exprid,pos),e)
+    (((exprid,pos),se),e)
   and aux_pat pos vtenv env (pat, e) =
     let merge_disj =
       StrMap.union (fun str v1 v2 ->
@@ -253,6 +318,10 @@ let parser_expr_to_annot_expr tenv vtenv name_var_map e =
   in
   aux vtenv name_var_map e
 
+let parser_expr_to_annot_expr tenv vtenv name_var_map penv e =
+  parser_expr_to_se_expr penv e
+  |> se_expr_to_annot_expr tenv vtenv name_var_map
+
 let map_p f p =
   let rec aux p =
     let p =
@@ -270,7 +339,7 @@ let map_p f p =
   in
   aux p
 
-let rec unannot (_,e) =
+let rec unannot ((_,se),e) =
   let e = match e with
     | Abstract t -> Abstract t
     | Const c -> Const c
@@ -290,7 +359,7 @@ let rec unannot (_,e) =
        PatMatch (unannot e
                 ,pats |> List.map (fun (p, e) -> (unannot_pat p, unannot e)))
   in
-  ( (), e )
+  ( ((),se), e )
 
 and unannot_pat pat =
   let rec aux pat =

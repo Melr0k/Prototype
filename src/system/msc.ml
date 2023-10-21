@@ -198,7 +198,7 @@ let rec def_of_var_pat pat v e =
    and should not be part of the AST like that *)
 let remove_patterns_and_fixpoints e =
   let aux_defs = ref [] in
-  let aux (annot,e) =
+  let aux ((annot,se),e) =
     let e =
       match e with
       | Ast.PatMatch (e, pats) ->
@@ -208,12 +208,12 @@ let remove_patterns_and_fixpoints e =
            let vars = vars_of_pat pat in
            let add_def acc v =
              let d = def_of_var_pat pat v e in
-             (annot, Ast.Let (v, d, acc))
+             ((annot,se), Ast.Let (v, d, acc))
            in
            List.fold_left add_def e' (VarSet.elements vars)
          in
          let add_branch acc (t, e') =
-           (annot, Ast.Ite (e, t, e', acc))
+           ((annot,se), Ast.Ite (e, t, e', acc))
          in
          let pats = pats
                     |> List.map (fun (pat, e') ->
@@ -225,16 +225,16 @@ let remove_patterns_and_fixpoints e =
          in
          let x = Variable.create_other None in
          Variable.attach_location x (Position.position annot) ;
-         Ast.Let (x, (annot, Ast.TypeConstr (e, t)), body)
+         Ast.Let (x, ((annot,se), Ast.TypeConstr (e, t)), body)
       | Ast.Fixpoint e ->
          let v = Variable.create_other (Some "fixpoint_aux") in
          aux_defs := (v,e)::(!aux_defs) ;
-         let lhs = (annot, Ast.Var fixpoint_var) in
-         let rhs = (annot, Ast.Var v) in
+         let lhs = ((annot,se), Ast.Var fixpoint_var) in
+         let rhs = ((annot,se), Ast.Var v) in
          Ast.App (lhs, rhs)
       | e -> e
     in
-    (annot, e)
+    ((annot,se), e)
   in
   let res = Ast.map_ast aux e in
   (res, !aux_defs)
@@ -304,7 +304,7 @@ let convert_to_msc ast =
           | Ast.PatMatch _ | Ast.Fixpoint _ -> assert false
 
     and to_defs_and_x ?(name=None) expr_var_map ast =
-      let ((_, pos), _) = ast in
+      let (((_, pos),_), _) = ast in
       try
         let (defs, expr_var_map, a) = to_defs_and_a expr_var_map ast in
         let var = Variable.create_binding name in
