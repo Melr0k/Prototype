@@ -112,8 +112,9 @@ let unique_exprid =
 let identifier_of_expr (a,_) = Position.value a
 let position_of_expr (a,_) = Position.position a
 
+let se_of ((_,s),_) = s
 let is_pure e =
-  let b,b' = fst e |> snd in
+  let b,b' = se_of e in
   b && b'
 let pure = (true, true)
 let n_pure = (false, false)
@@ -121,6 +122,11 @@ let const_se = (true, false)
 
 let parser_expr_to_se_expr penv e =
   let rec aux penv (a,e) =
+    let args aux penv e =
+      let e = aux penv e in
+      let b,b' = se_of e in
+      (b,b',e)
+    in
     let se,e = match e with
       | Abstract t -> pure, Abstract t
       | Const c -> const_se, Const c
@@ -131,45 +137,71 @@ let parser_expr_to_se_expr penv e =
         , Var v
       | Lambda (t, v, e) ->
          let penv = PureEnv.remove v penv in
-         let (_,(b,_)),_ as e= aux penv e in
+         let b,_,e = args aux penv e in
          ( (false, b)
          , Lambda (t, v, e) )
       | Fixpoint e ->
-         let (_,se),_ as e = aux penv e in
-         se, Fixpoint e
+         let e = aux penv e in
+         ( se_of e
+         , Fixpoint e )
       | Ite (e, t, e1, e2) ->
-         let (_,(b,_   )),_ as e  = aux penv e in
-         let (_,(b1,b1')),_ as e1 = aux penv e1 in
-         let (_,(b2,b2')),_ as e2 = aux penv e2 in
+         let b ,_  ,e  = args aux penv e  in
+         let b1,b1',e1 = args aux penv e1 in
+         let b2,b2',e2 = args aux penv e2 in
          ( (b&&b1&&b2, b1'&&b2')
          , Ite (e, t, e1, e2) )
       | App (e1, e2) ->
-         let (_,(b1,b1')),_ as e1 = aux penv e1 in
-         let (_,(b2,_  )),_ as e2 = aux penv e2 in
+         let b1,b1',e1 = args aux penv e1 in
+         let b2,_  ,e2 = args aux penv e2 in
          ( (b1&&b1'&&b2, false)
          , App (e1, e2) )
       | Let (v, e1, e2) ->
-         let (_,(b1,b1')),_ as e1 = aux penv e1 in
+         let b1,b1',e1 = args aux penv e1 in
          let penv = if b1 && b1'
                     then PureEnv.add v penv
                     else penv in
-         let (_,(b2,b2')),_ as e2 = aux penv e2 in
+         let b2,b2',e2 = args aux penv e2 in
          ( (b1&&b2, b1'&&b2')
-         , Let (v, e1, e2))
-      | Pair (e1, e2)  -> ignore (e1,e2); failwith "TODO"
-      | Projection (p, e) -> ignore (p,e); failwith "TODO"
-      | RecordUpdate (e1, l, e2)  -> ignore (e1,l,e2); failwith "TODO"
-      | Ref e -> ignore e; failwith "TODO"
-      | Read e -> ignore e; failwith "TODO"
-      | Assign (e1,e2) -> ignore (e1,e2); failwith "TODO"
-      | TypeConstr (e,t) -> ignore (e,t); failwith "TODO"
-      | PatMatch (e,pats) -> ignore (e,pats); failwith "TODO"
+         , Let (v, e1, e2) )
+      | Pair (e1, e2)  ->
+         let b1,b1',e1 = args aux penv e1 in
+         let b2,b2',e2 = args aux penv e2 in
+         ( (b1&&b2, b1'&&b2')
+         , Pair (e1, e2) )
+      | Projection (p, e) ->
+         let e = aux penv e in
+         ( se_of e
+         , Projection (p, e))
+      | RecordUpdate (e1, l, e2)  ->
+         let b1,b1',e1 = args aux penv e1 in
+         let b2,b2',e2 = match e2 with
+           | None -> true,true,None
+           | Some e2 -> let a,b,c = args aux penv e2 in a,b,(Some c)
+         in
+         ( (b1&&b2, b1'&&b2')
+         , RecordUpdate (e1, l, e2) )
+      | Ref e -> (n_pure, Ref (aux penv e))
+      | Read e -> (n_pure, Read (aux penv e))
+      | Assign (e1,e2) -> (n_pure, Assign (aux penv e1, aux penv e2))
+      | TypeConstr (e,t) ->
+         let e = aux penv e in
+         ( se_of e
+         , TypeConstr (e,t) )
+      | PatMatch (e,pats) ->
+         let b1,b1',e = args aux penv e in
+         let pats = List.map (aux_pat penv) pats in
+         let b2,b2' = List.fold_left (fun (x,y) (_,e) ->
+                          let s,t = se_of e in
+                          (x&&s, y&&t)
+                        ) pure pats
+         in
+         ( (b1&&b2, b1'&&b2')
+         , PatMatch (e,pats) )
     in
     ((a,se),e)
   and aux_pat penv (_,e) = match e with
     | _ -> ignore (penv,e); failwith "TODO"
   in
-  ignore (aux_pat penv e);
   aux penv e
 
 let new_annot p =

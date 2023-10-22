@@ -76,7 +76,8 @@ val identifier_of_expr : (annotation, 'a, 'b) t -> exprid
 val position_of_expr : (annotation, 'a, 'b) t -> Position.t
 
 (* side-effects... *)
-val is_pure : (('a * se), 'b, 'c) t -> bool (* fst e |> fst *)
+val se_of : ('a * 's) * 'b -> 's
+val is_pure : (('a * se), 'b, 'c) t -> bool
 val pure : se
 val n_pure : se
 val const_se : se
