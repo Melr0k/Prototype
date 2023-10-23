@@ -5,7 +5,7 @@
 
 (library
  (name parsing)
- (libraries types pomap utils)
+ (libraries types pomap utils pyre-ast)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq))
  (modules (:standard)))
