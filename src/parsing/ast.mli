@@ -59,7 +59,7 @@ and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
 type se = bool * bool (* side effects : (expr, app) *)
 type st_env = se VarMap.t (* var -> stable *)
 
-module PureEnv : Set.S with type elt = string
+module PureEnv : Set.S with type elt = varname
 
 type parser_expr = (annotation     , type_expr, varname   ) t
 type annot_expr  = (annotation * se, typ      , Variable.t) t
