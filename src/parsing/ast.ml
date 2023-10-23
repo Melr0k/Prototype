@@ -199,8 +199,24 @@ let parser_expr_to_se_expr penv e =
          , PatMatch (e,pats) )
     in
     ((a,se),e)
-  and aux_pat penv (_,e) = match e with
-    | _ -> ignore (penv,e); failwith "TODO"
+  and aux_pat penv (pat,e) =
+    let vars_in =
+      let rec loop acc = function
+        | PatType _ -> acc
+        | PatVar v -> v::acc
+        | PatAnd (p1, p2) | PatOr (p1,p2) | PatPair (p1,p2)
+          -> let l1 = loop acc p1 in
+             loop l1 p2
+        | PatRecord (pl, _) ->
+           List.fold_left (fun a (_,pat) -> loop a pat) acc pl
+        | PatAssign (v, _) -> v::acc
+      in
+      loop []
+    in
+    let penv = vars_in pat
+               |> List.fold_left (fun a v -> PureEnv.remove v a) penv in
+    ( (pat :> ('a * se, 'b, varname) pattern) (* 'a not used in patterns ! *)
+    , aux penv e)
   in
   aux penv e
 
