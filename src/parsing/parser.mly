@@ -72,9 +72,9 @@
 %token FUN LET REC IN FST SND DEBUG
 %token IF IS THEN ELSE
 %token LPAREN RPAREN EQUAL COMMA COLON INTERROGATION_MARK
-(* %token BANG COLONEQ REF *)
+%token BANG COLONEQ REF
 %token ARROW AND OR NEG DIFF
-%token ANY EMPTY BOOL CHAR FLOAT INT TRUE FALSE UNIT NIL STRING LIST (* TREF *)
+%token ANY EMPTY BOOL CHAR FLOAT INT TRUE FALSE UNIT NIL STRING LIST TREF
 %token DOUBLEDASH TIMES PLUS MINUS DIV
 %token LBRACE RBRACE DOUBLEPOINT MATCH WITH END EQUAL_OPT POINT LT GT
 %token ATOMS TYPE TYPE_AND DOUBLE_OR (*DOUBLE_AND*)
@@ -98,7 +98,7 @@
 %right ARROW
 %left OR
 %left AND
-(* %left COLONEQ *)
+%left COLONEQ
 %nonassoc DIFF
 %nonassoc NEG
 
@@ -165,9 +165,9 @@ term:
 | IF t=term ott=optional_test_type THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,ott,t1,t2)) }
 | MATCH t=term WITH pats=patterns END { annot $startpos $endpos (PatMatch (t,pats)) }
 | lhs=simple_term COMMA rhs=term { annot $startpos $endpos (Pair (lhs, rhs)) }
-// | REF t=term { annot $startpos $endpos (Ref t) }
-// | BANG t=term { annot $startpos $endpos (Read t) }
-// | r=term COLONEQ t=term { annot $startpos $endpos (Assign (r,t)) }
+| REF t=term { annot $startpos $endpos (Ref t) }
+| BANG t=term { annot $startpos $endpos (Read t) }
+| r=term COLONEQ t=term { annot $startpos $endpos (Assign (r,t)) }
 
 simple_term:
   a=atomic_term { a }
