@@ -10,7 +10,7 @@ exception TypeDefinitionError of string
 type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
-  | TString | TList | TFloat (* | TRef *)
+  | TString | TList | TFloat | TRef
 
 type type_regexp =
   | ReEpsilon | ReEmpty

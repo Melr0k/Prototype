@@ -1,4 +1,3 @@
-
 all: build run
 
 build:
@@ -22,3 +21,6 @@ test:
 perf:
 	sudo perf record --call-graph=dwarf -- ./_build/default/main/prototype.exe
 	sudo perf report
+
+ref:
+	dune exec ./main/prototype.exe test_ref.ml

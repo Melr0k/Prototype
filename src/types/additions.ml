@@ -12,7 +12,7 @@ exception TypeDefinitionError of string
 type type_base =
   | TInt of int option * int option | TSChar of char | TSString of string
   | TBool | TTrue | TFalse | TUnit | TChar | TAny | TEmpty | TNil
-  | TString | TList | TFloat (* | TRef *)
+  | TString | TList | TFloat | TRef
 
 type type_regexp =
   | ReEpsilon | ReEmpty
@@ -33,6 +33,7 @@ and type_expr =
   | TCap of type_expr * type_expr
   | TDiff of type_expr * type_expr
   | TNeg of type_expr
+(*| TSRef of type_expr *)
 
 type type_alias = TVar.t list * node
 type type_env = type_alias StrMap.t (* User-defined types *)
@@ -53,6 +54,7 @@ let type_base_to_typ t =
   | TUnit -> unit_typ | TChar -> char_typ
   | TAny -> any | TEmpty -> empty
   | TString -> string_typ | TList -> list_typ
+  | TRef -> any_ref
 
 let instantiate_alias env args name =
   try
@@ -120,7 +122,8 @@ let derecurse_types env venv defs =
        begin match StrMap.find_opt v lcl, Hashtbl.find_opt venv v with
        | Some t, _ | None, Some t -> Typepat.mk_type t
        | None, None ->
-          let t = TVar.mk_mono ~infer:(is_infer_var_name v) (Some v) |> TVar.typ in
+          let t = TVar.mk_mono ~infer:(is_infer_var_name v) (Some v)
+                  |> TVar.typ in
           Hashtbl.add venv v t ;
           Typepat.mk_type t
        end
@@ -154,6 +157,14 @@ let derecurse_types env venv defs =
        let t2 = aux ~nd lcl t2 in
        Typepat.mk_diff t1 t2
     | TNeg t -> Typepat.mk_diff (Typepat.mk_type any) (aux ~nd lcl t)
+ (* | TSRef t ->
+       let t = aux t in
+       let get = Typepat.(mk_arrow (mk_type unit_typ) t)
+       and set = Typepat.(mk_arrow t (mk_type unit_typ)) in
+       Cduce_types.Ident.(
+       LabelMap.from_list_disj [Cduce.to_label "get", (get, None)
+       ;Cduce.to_label "set", (set, None)] )
+       |> Typepat.(mk_record false) *)
   and aux_re ~nd lcl r =
     match r with
     | ReEmpty -> Typepat.mk_empty
@@ -163,23 +174,26 @@ let derecurse_types env venv defs =
     | ReAlt (r1, r2) -> Typepat.mk_alt (aux_re ~nd lcl r1) (aux_re ~nd lcl r2)
     | ReStar r -> Typepat.mk_star (aux_re ~nd lcl r)
   in
-  let res = defs |> List.map (fun (name, params, _) ->
-                        let params = List.map (fun _ -> TVar.mk_unregistered ()) params in
-                        let args = List.map TVar.typ params in
-                        let node = get_name ~nd:false args name in
-                        (* Typepat.internalize node ; *)
-                        name, params, Typepat.typ node) in
+  let res =
+    defs |> List.map (fun (name, params, _) ->
+                let params = List.map (fun _ ->
+                                 TVar.mk_unregistered ()) params in
+                let args = List.map TVar.typ params in
+                let node = get_name ~nd:false args name in
+                (* Typepat.internalize node ; *)
+                name, params, Typepat.typ node) in
   let venv = Hashtbl.fold StrMap.add venv StrMap.empty in
   (res, venv)
 
-let type_expr_to_typ (tenv, _) venv t = 
+let type_expr_to_typ (tenv, _) venv t =
   match derecurse_types tenv venv [ ("", [], t) ] with
   | ([ _, _, n ], venv) -> (n, venv)
   | _ -> assert false
 
 let define_types (tenv, aenv) venv defs =
   let defs = List.map
-               (fun (name, params, decl) -> (String.capitalize_ascii name, params, decl))
+               (fun (name, params, decl) ->
+                 (String.capitalize_ascii name, params, decl))
                defs
   in
   let (res, venv) = derecurse_types tenv venv defs in
@@ -195,7 +209,8 @@ let define_atom (env, atoms) name =
   let atom = String.uncapitalize_ascii name in
   let typ = String.capitalize_ascii name in
   if StrMap.mem typ env
-  then raise (TypeDefinitionError (Printf.sprintf "Type %s already defined!" typ))
+  then raise (TypeDefinitionError
+                (Printf.sprintf "Type %s already defined!" typ))
   else (StrMap.add typ ([], cons (mk_atom atom)) env, StrSet.add atom atoms)
 
 let get_atom_type (env, _) name =
@@ -230,9 +245,11 @@ let is_test_type t =
               | Absent | Abstract _ | Char _ | Int _ | Atom _ | Xml _ -> ()
               | Times m ->
                  let module K = (val m) in
-                 K.get_vars t |> K.Dnf.get_full |> List.iter (fun (_, (ps, ns)) ->
-                                                       ps@ns |> List.iter (fun (a,b) -> aux a ; aux b)
-                                                     )
+                 K.get_vars t
+                 |> K.Dnf.get_full
+                 |> List.iter (fun (_, (ps, ns)) ->
+                        ps@ns |> List.iter (fun (a,b) -> aux a ; aux b)
+                      )
               | Function m ->
                  let module K = (val m) in
                  let f = K.get_vars t |> K.mk in
@@ -240,9 +257,11 @@ let is_test_type t =
                  then raise NotTestType
               | Record m ->
                  let module K = (val m) in
-                 K.get_vars t |> K.Dnf.get_full |> List.iter (fun (_, (ps, ns)) ->
-                                                       ps@ns |> List.iter (fun (_,lm) -> LabelMap.iter aux lm)
-                                                     )
+                 K.get_vars t
+                 |> K.Dnf.get_full
+                 |> List.iter (fun (_, (ps, ns)) ->
+                        ps@ns |> List.iter (fun (_,lm) -> LabelMap.iter aux lm)
+                      )
             ) (descr n)
         end
     in aux (cons t) ; true
@@ -265,10 +284,8 @@ let record_branch_type (fields, o) =
 let full_branch_type_aux line_typ ((pvs, nvs), (ps, ns)) =
   let pvs = pvs |> List.map TVar.typ |> conj in
   let nvs = nvs |> List.map TVar.typ |> List.map neg |> conj in
-  let ps = ps |>
-             List.map (fun l -> line_typ l) |> conj in
-  let ns = ns |>
-             List.map (fun l -> line_typ l |> neg) |> conj in
+  let ps = ps |> List.map (fun l -> line_typ l) |> conj in
+  let ns = ns |> List.map (fun l -> line_typ l |> neg) |> conj in
   [pvs;nvs;ps;ns] |> conj
 
 let full_branch_type b =
@@ -337,13 +354,15 @@ let regroup_conjuncts_descr ps =
 
 let simplify_dnf dnf =
   let simplify_conjuncts conjuncts =
-    conjuncts |>
-      List.map (fun (a, b) -> ((a,b), mk_arrow (cons a) (cons b))) |>
-      Utils.filter_among_others (fun (_,t) ts -> subtype (List.map snd ts |> conj) t |> not)
+    conjuncts
+    |> List.map (fun (a, b) -> ((a,b), mk_arrow (cons a) (cons b)))
+    |> Utils.filter_among_others (fun (_,t) ts ->
+           subtype (List.map snd ts |> conj) t |> not)
     |> List.split |> fst |> regroup_conjuncts_descr
   in
   List.map (fun arrows -> (arrows, branch_type arrows)) dnf |>
-    Utils.filter_among_others (fun (_,t) ts -> subtype t (List.map snd ts |> disj) |> not)
+    Utils.filter_among_others (fun (_,t) ts ->
+        subtype t (List.map snd ts |> disj) |> not)
   |> List.map fst |> List.map simplify_conjuncts
 (* |> regroup_disjuncts_simpl *)
 
@@ -505,15 +524,23 @@ let top_instance =
 let clean_types ~pos ~neg lst =
   let pols = List.map vars_with_polarity lst in
   let vars = lst |> List.map vars_poly |> TVarSet.union_many in
-  vars |> TVarSet.destruct |> List.map (fun v ->
-                                  if pols |> List.for_all (fun lst -> lst
-                                                                      |> List.for_all (fun (v', k) -> (TVar.equal v v' |> not) || k = `Pos)
-                                               ) then (v, pos)
-                                  else if pols |> List.for_all (fun lst -> lst
-                                                                           |> List.for_all (fun (v', k) -> (TVar.equal v v' |> not) || k = `Neg)
-                                                    ) then (v, neg)
-                                  else (v, TVar.typ v)
-                                ) |> Subst.construct
+  vars
+  |> TVarSet.destruct
+  |> List.map (fun v ->
+         if pols
+            |> List.for_all (fun lst ->
+                   lst |> List.for_all (fun (v', k) ->
+                              (TVar.equal v v' |> not) || k = `Pos)
+                 )
+         then (v, pos)
+         else if pols
+                 |> List.for_all (fun lst ->
+                        lst |> List.for_all (fun (v', k) ->
+                                   (TVar.equal v v' |> not) || k = `Neg)
+                      )
+         then (v, neg)
+         else (v, TVar.typ v)
+       ) |> Subst.construct
 
 let subtypes_poly lst =
   let m = lst |> List.map snd |> List.map vars
@@ -541,26 +568,29 @@ let rec uncorrelate_tvars keep t =
   else
     let dnf, non_arrow = dnf t, cap t (neg arrow_any) in
     (* Refresh branches *)
-    let dnf = dnf |> List.map (fun arrows ->
-                         arrows |> List.map (fun (a,b) ->
-                                       let to_rename = TVarSet.diff (vars_poly a) keep in
-                                       let rename = refresh to_rename in
-                                       let keep = TVarSet.union keep (Subst.codom rename) in
-                                       let a = Subst.apply rename a in
-                                       let b = Subst.apply rename b |> uncorrelate_tvars keep in
-                                       (a, b)
-                                     )
-                       ) in
+    let dnf =
+      dnf
+      |> List.map (fun arrows ->
+             arrows |> List.map (fun (a,b) ->
+                           let to_rename = TVarSet.diff (vars_poly a) keep in
+                           let rename = refresh to_rename in
+                           let keep = TVarSet.union keep (Subst.codom rename) in
+                           let a = Subst.apply rename a in
+                           let b = Subst.apply rename b
+                                   |> uncorrelate_tvars keep in
+                           (a, b) ) )
+    in
     (* Avoid useless branches *)
     let mono = monomorphize keep in
-    let dnf = dnf |> List.map (fun arrows ->
-                         arrows |> Utils.filter_among_others (fun c lst ->
-                                       let others = branch_type lst in
-                                       let others = Subst.apply mono others in
-                                       let current = branch_type [c] in
-                                       let current = Subst.apply mono current in
-                                       subtype_poly others current |> not
-                       )) in
+    let dnf =
+      dnf |> List.map (fun arrows ->
+                 arrows |> Utils.filter_among_others (fun c lst ->
+                               let others = branch_type lst in
+                               let others = Subst.apply mono others in
+                               let current = branch_type [c] in
+                               let current = Subst.apply mono current in
+                               subtype_poly others current |> not ) )
+    in
     (* Rebuild type *)
     let t = List.map branch_type dnf |> disj in
     cup t non_arrow

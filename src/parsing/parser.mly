@@ -164,9 +164,9 @@ term:
 | LET LPAREN p = pattern RPAREN EQUAL td=term IN t=term { let_pattern $startpos $endpos p td t }
 | IF t=term ott=optional_test_type THEN t1=term ELSE t2=term { annot $startpos $endpos (Ite (t,ott,t1,t2)) }
 | MATCH t=term WITH pats=patterns END { annot $startpos $endpos (PatMatch (t,pats)) }
-| lhs=simple_term COMMA rhs=term { annot $startpos $endpos (Pair (lhs, rhs)) }
 | REF t=term { annot $startpos $endpos (Ref t) }
 | BANG t=term { annot $startpos $endpos (Read t) }
+| lhs=simple_term COMMA rhs=term { annot $startpos $endpos (Pair (lhs, rhs)) }
 | r=term COLONEQ t=term { annot $startpos $endpos (Assign (r,t)) }
 
 simple_term:
@@ -293,6 +293,7 @@ atomic_typ:
 | NIL { TNil }
 | STRING { TString }
 | LIST { TList }
+| TREF { TRef }
 | str=LSTRING { TSString str }
 
 %inline type_interval:
