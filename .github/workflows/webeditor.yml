@@ -28,44 +28,44 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-#
-#      # OCaml build
-#      - name: Use OCaml ${{ matrix.ocaml-compiler }}
-#        uses: ocaml/setup-ocaml@v2
-#        with:
-#          ocaml-compiler: ${{ matrix.ocaml-compiler }}
-#      - name: Install OCaml dependencies
-#        run: |
-#          opam pin add cduce-types 'git+https://gitlab.math.univ-paris-diderot.fr/cduce/cduce#dev'
-#          opam pin add cduce 'git+https://gitlab.math.univ-paris-diderot.fr/cduce/cduce#dev'
-#          opam install ppx_deriving pomap tsort
-#          opam install yojson js_of_ocaml-ppx
-#      # - run: |
-#      #     cd src
-#      #     opam install . --deps-only
-#      - name: Build
-#        run: |
-#          cd src
-#          opam exec -- dune build --profile release main/lib_js.bc.js
-#          cp _build/default/main/lib_js.bc.js ../webeditor/typechecker.js
-#
-#      # Node dependencies
-#      - name: Use Node.js
-#        uses: actions/setup-node@v3
-#        with:
-#          node-version: 16
-#      - name: Install Node.js dependencies
-#        run: |
-#          cd webeditor
-#          npm ci
-#
-#      # Upload artifact
-#      - name: Configure GitHub Pages
-#        uses: actions/configure-pages@v1
-#      - name: Upload artifact
-#        uses: actions/upload-pages-artifact@v1
-#        with:
-#          path: webeditor/
-#      - name: Deploy to GitHub Pages
-#        id: deployment
-#        uses: actions/deploy-pages@v1
+
+      # OCaml build
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+      - name: Install OCaml dependencies
+        run: |
+          opam pin add cduce-types 'git+https://gitlab.math.univ-paris-diderot.fr/cduce/cduce#dev'
+          opam pin add cduce 'git+https://gitlab.math.univ-paris-diderot.fr/cduce/cduce#dev'
+          opam install ppx_deriving pomap tsort
+          opam install yojson js_of_ocaml-ppx
+      # - run: |
+      #     cd src
+      #     opam install . --deps-only
+      - name: Build
+        run: |
+          cd src
+          opam exec -- dune build --profile release main/lib_js.bc.js
+          cp _build/default/main/lib_js.bc.js ../webeditor/typechecker.js
+
+      # Node dependencies
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install Node.js dependencies
+        run: |
+          cd webeditor
+          npm ci
+
+      # Upload artifact
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v1
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: webeditor/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
