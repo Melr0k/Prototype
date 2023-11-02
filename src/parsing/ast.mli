@@ -77,6 +77,7 @@ val position_of_expr : (annotation, 'a, 'b) t -> Position.t
 
 (* side-effects... *)
 val se_of : ('a * 's) * 'b -> 's
+val is_reduced : (('a * se), 'b, 'c) t -> bool
 val is_pure : (('a * se), 'b, 'c) t -> bool
 val pure : se
 val n_pure : se

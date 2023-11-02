@@ -113,6 +113,7 @@ let identifier_of_expr (a,_) = Position.value a
 let position_of_expr (a,_) = Position.position a
 
 let se_of ((_,s),_) = s
+let is_reduced e = se_of e |> fst
 let is_pure e =
   let b,b' = se_of e in
   b && b'
@@ -138,7 +139,7 @@ let parser_expr_to_se_expr penv e =
       | Lambda (t, v, e) ->
          let penv = PureEnv.remove v penv in
          let b,_,e = args aux penv e in
-         ( (false, b)
+         ( (true, b)
          , Lambda (t, v, e) )
       | Fixpoint e ->
          let e = aux penv e in
