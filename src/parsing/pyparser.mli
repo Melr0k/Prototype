@@ -1,5 +1,7 @@
-open PyreAst.Concrete
+open PyreAst
 open Ast
 
-val parse : string -> Module.t
-val py_to_t : Module.t -> parser_expr
+val pos_of_loc : ?filename:string -> ?bol:int -> Concrete.Location.t
+                 -> Position.t
+val py_to_t : ?filename:string -> Concrete.Module.t -> parser_expr
+val parse : string -> Concrete.Module.t
