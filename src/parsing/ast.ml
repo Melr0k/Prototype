@@ -111,6 +111,7 @@ let unique_exprid =
   )
 let identifier_of_expr (a,_) = Position.value a
 let position_of_expr (a,_) = Position.position a
+let position_of_se_expr ((a,_),_) = Position.position a
 
 let se_of ((_,s),_) = s
 let is_reduced e = se_of e |> fst

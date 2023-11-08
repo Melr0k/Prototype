@@ -74,6 +74,7 @@ val empty_name_var_map : name_var_map
 val unique_exprid : unit -> exprid
 val identifier_of_expr : (annotation, 'a, 'b) t -> exprid
 val position_of_expr : (annotation, 'a, 'b) t -> Position.t
+val position_of_se_expr : ((annotation * 's), 'a, 'b) t -> Position.t
 
 (* side-effects... *)
 val se_of : ('a * 's) * 'b -> 's
