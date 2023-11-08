@@ -4,7 +4,7 @@ let alloc = ref 5
 
 let read = !alloc
 
-let assign = (alloc := true)
+let assign = alloc := true
 
 let f0 = fun x -> read (* pure *)
 
