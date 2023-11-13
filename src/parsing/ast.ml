@@ -116,6 +116,9 @@ let position_of_se_expr ((a,_),_) = Position.position a
 let se_of ((_,s),_) = s
 let is_reduced e = se_of e |> fst
 let is_pure e =
+  let b,_ = se_of e in
+  b
+let is_1pure e =
   let b,b' = se_of e in
   b && b'
 let pure = (true, true)
