@@ -31,3 +31,7 @@ let f5 = fun f -> if (f 5) is Int
 let f6 = fun x -> if (f2 (succ x)) is 42
                   then (f2 (succ x))
                   else true
+
+let add = <Int -> Int -> Int> :2pure
+
+let test = add 5

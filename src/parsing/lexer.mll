@@ -110,6 +110,7 @@ rule token = parse
 | "magic" { MAGIC }
 | "<"     { LT }
 | ">"     { GT }
+| "pure"  { PURE }
 | int as i { LINT (int_of_string i) }
 | float as f { LFLOAT (float_of_string f) }
 | "true"  { LBOOL true }

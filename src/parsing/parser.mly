@@ -88,7 +88,7 @@
 %token<char> LCHAR
 %token<string> LSTRING
 %token LUNIT LNIL
-%token MAGIC
+%token MAGIC PURE
 %token<string> INFIX PREFIX
 
 %type<Ast.parser_expr> term
@@ -178,7 +178,11 @@ simple_term:
 | p=prefix_term a=atomic_term { annot $startpos $endpos (App (p, a)) }
 | a=atomic_term POINT id=ID { annot $startpos $endpos (Projection (Field id, a)) }
 | a=atomic_term DIFF id=ID { annot $startpos $endpos (RecordUpdate (a,id,None)) }
-| LT t=typ GT { annot $startpos $endpos (Abstract t) }
+| LT t=typ GT p=optional_purity { annot $startpos $endpos (Abstract (t,p)) }
+
+%inline optional_purity:
+  { Ast.n_pure }
+| COLON i=LINT PURE { Ast.se_of_int i }
 
 infix_term:
   x=infix { annot $startpos $endpos (Var x) }
@@ -189,7 +193,7 @@ prefix_term:
 atomic_term:
   x=generalized_identifier { annot $startpos $endpos (Var x) }
 | l=literal { annot $startpos $endpos (Const l) }
-| MAGIC { annot $startpos $endpos (Abstract (TBase TEmpty)) }
+| MAGIC { annot $startpos $endpos (Abstract ((TBase TEmpty),Ast.n_pure)) }
 | LPAREN RPAREN { annot $startpos $endpos (Const Unit) }
 | LPAREN t=term RPAREN { t }
 | LPAREN t=term COLON ty=typ RPAREN { annot $startpos $endpos (TypeConstr (t,ty)) }

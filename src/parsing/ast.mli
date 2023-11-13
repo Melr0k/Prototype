@@ -12,6 +12,11 @@ type exprid = int
 
 type annotation = exprid Position.located
 
+type se = bool * bool (* side effects : (expr, app) *)
+type st_env = se VarMap.t (* var -> stable *)
+
+module PureEnv : Set.S with type elt = varname
+
 type const =
   | Unit | Nil
   | EmptyRecord
@@ -36,7 +41,7 @@ type ('a, 'typ, 'v) pattern =
   | PatAssign of 'v * const
 
 and ('a, 'typ, 'v) ast =
-  | Abstract of 'typ
+  | Abstract of 'typ * se
   | Const of const
   | Var of 'v
   | Lambda of ('typ type_annot) * 'v * ('a, 'typ, 'v) t
@@ -55,11 +60,6 @@ and ('a, 'typ, 'v) ast =
                 * (('a, 'typ, 'v) pattern * ('a, 'typ, 'v) t) list
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
-
-type se = bool * bool (* side effects : (expr, app) *)
-type st_env = se VarMap.t (* var -> stable *)
-
-module PureEnv : Set.S with type elt = varname
 
 type parser_expr = (annotation     , type_expr, varname   ) t
 type annot_expr  = (annotation * se, typ      , Variable.t) t
@@ -83,6 +83,7 @@ val is_pure : (('a * se), 'b, 'c) t -> bool
 val pure : se
 val n_pure : se
 val const_se : se
+val se_of_int : int -> se
 
 val new_annot : Position.t -> annotation
 val copy_annot : annotation -> annotation

@@ -250,7 +250,7 @@ let convert_to_msc ast =
         raise (IsVar (ExprMap.get_el node))
       else
         match e with
-        | Ast.Abstract t -> ([], expr_var_map, Abstract t)
+        | Ast.Abstract (t,_) -> ([], expr_var_map, Abstract t)
         | Ast.Const c -> ([], expr_var_map, Const c)
         | Ast.Var v when Variable.is_binding_var v -> raise (IsVar v)
         | Ast.Var v -> ([], expr_var_map, Alias v)

@@ -12,6 +12,11 @@ type exprid = int
 
 type annotation = exprid Position.located
 
+type se = bool * bool (* side effects : (expr, app) *) [@@deriving ord]
+type st_env = se VarMap.t (* var -> stable *)
+
+module PureEnv = Set.Make(String)
+
 type const =
   | Unit | Nil
   | EmptyRecord
@@ -40,7 +45,7 @@ type ('a, 'typ, 'v) pattern =
 [@@deriving ord]
 
 and ('a, 'typ, 'v) ast =
-  | Abstract of 'typ
+  | Abstract of 'typ * se
   | Const of const
   | Var of 'v
   | Lambda of ('typ type_annot) * 'v * ('a, 'typ, 'v) t
@@ -60,11 +65,6 @@ and ('a, 'typ, 'v) ast =
 [@@deriving ord]
 
 and ('a, 'typ, 'v) t = 'a * ('a, 'typ, 'v) ast
-
-type se = bool * bool (* side effects : (expr, app) *)
-type st_env = se VarMap.t (* var -> stable *)
-
-module PureEnv = Set.Make(String)
 
 type parser_expr  = (annotation     , type_expr, varname   ) t
 (* type se_expr      = (annotation * se, type_expr, varname   ) t *)
@@ -122,6 +122,11 @@ let pure = (true, true)
 let n_pure = (false, false)
 let const_se = (true, false)
 
+let se_of_int = function (* for parser purposes *)
+  | 0 -> (true, false)
+  | x when x > 0 -> pure
+  | _ -> n_pure
+
 let parser_expr_to_se_expr penv e =
   let rec aux penv (a,e) =
     let args aux penv e =
@@ -130,7 +135,7 @@ let parser_expr_to_se_expr penv e =
       (b,b',e)
     in
     let se,e = match e with
-      | Abstract t -> pure, Abstract t
+      | Abstract (t,p) -> p, Abstract (t,p)
       | Const c -> const_se, Const c
       | Var v ->
          (if PureEnv.mem v penv
@@ -235,9 +240,9 @@ let dummy_pat_var =
 let se_expr_to_annot_expr tenv vtenv name_var_map e =
   let rec aux vtenv env (((exprid,pos),se),e) =
     let e = match e with
-      | Abstract t ->
+      | Abstract (t,p) ->
          let (t, _) = type_expr_to_typ tenv vtenv t in
-         Abstract t
+         Abstract (t,p)
       | Const c -> Const c
       | Var str ->
          if StrMap.mem str env
@@ -391,7 +396,7 @@ let map_p f p =
 
 let rec unannot ((_,se),e) =
   let e = match e with
-    | Abstract t -> Abstract t
+    | Abstract (t,p) -> Abstract (t,p)
     | Const c -> Const c
     | Var v -> Var v
     | Lambda (t, v, e) -> Lambda (t, v, unannot e)
@@ -436,7 +441,7 @@ let get_predefined_var i =
 let normalize_bvs e =
   let rec aux depth map (a, e) =
     let e = match e with
-      | Abstract t -> Abstract t
+      | Abstract (t,p) -> Abstract (t,p)
       | Const c -> Const c
       | Var v when VarMap.mem v map -> Var (VarMap.find v map)
       | Var v -> Var v
@@ -501,7 +506,7 @@ let unannot_and_normalize e = e |> unannot |> normalize_bvs
 let map_ast f e =
   let rec aux (annot, e) =
     let e = match e with
-      | Abstract t -> Abstract t
+      | Abstract (t,p) -> Abstract (t,p)
       | Const c -> Const c
       | Var v -> Var v
       | Lambda (annot, v, e) -> Lambda (annot, v, aux e)
