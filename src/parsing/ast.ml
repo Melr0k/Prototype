@@ -12,7 +12,24 @@ type exprid = int
 
 type annotation = exprid Position.located
 
-type se = bool * bool (* side effects : (expr, app) *) [@@deriving ord]
+module SE = struct
+  type t = bool * bool [@@deriving ord]
+
+  let is_full_pure (b,b') = b && b'
+  let is_0pure (b,_) = b
+  let is_1pure (_,b) = b
+
+  let pure1 = (true, true)
+  let pure0 = (true, false)
+  let n_pure = (false, false)
+
+  let of_int = function (* for parser purposes *)
+    | 0 -> (true, false)
+    | x when x > 0 -> pure1
+    | _ -> n_pure
+end
+
+type se = SE.t [@@deriving ord]
 type st_env = se VarMap.t (* var -> stable *)
 
 module PureEnv = Set.Make(String)
@@ -114,21 +131,9 @@ let position_of_expr (a,_) = Position.position a
 let position_of_se_expr ((a,_),_) = Position.position a
 
 let se_of ((_,s),_) = s
-let is_reduced e = se_of e |> fst
-let is_pure e =
-  let b,_ = se_of e in
-  b
-let is_1pure e =
-  let b,b' = se_of e in
-  b && b'
-let pure = (true, true)
-let n_pure = (false, false)
-let const_se = (true, false)
-
-let se_of_int = function (* for parser purposes *)
-  | 0 -> (true, false)
-  | x when x > 0 -> pure
-  | _ -> n_pure
+let is_pure e = se_of e |> SE.is_full_pure
+let is_0pure e = se_of e |> SE.is_0pure
+let is_1pure e = se_of e |> SE.is_1pure
 
 let parser_expr_to_se_expr penv e =
   let rec aux penv (a,e) =
@@ -139,11 +144,11 @@ let parser_expr_to_se_expr penv e =
     in
     let se,e = match e with
       | Abstract (t,p) -> p, Abstract (t,p)
-      | Const c -> const_se, Const c
+      | Const c -> SE.pure0, Const c
       | Var v ->
          (if PureEnv.mem v penv
-          then pure
-          else const_se )
+          then SE.pure1
+          else SE.pure0 )
         , Var v
       | Lambda (t, v, e) ->
          let penv = PureEnv.remove v penv in
@@ -190,9 +195,9 @@ let parser_expr_to_se_expr penv e =
          in
          ( (b1&&b2, b1'&&b2')
          , RecordUpdate (e1, l, e2) )
-      | Ref e -> (n_pure, Ref (aux penv e))
-      | Read e -> (n_pure, Read (aux penv e))
-      | Assign (e1,e2) -> (n_pure, Assign (aux penv e1, aux penv e2))
+      | Ref e -> (SE.n_pure, Ref (aux penv e))
+      | Read e -> (SE.n_pure, Read (aux penv e))
+      | Assign (e1,e2) -> (SE.n_pure, Assign (aux penv e1, aux penv e2))
       | TypeConstr (e,t) ->
          let e = aux penv e in
          ( se_of e
@@ -203,7 +208,7 @@ let parser_expr_to_se_expr penv e =
          let b2,b2' = List.fold_left (fun (x,y) (_,e) ->
                           let s,t = se_of e in
                           (x&&s, y&&t)
-                        ) pure pats
+                        ) SE.pure1 pats
          in
          ( (b1&&b2, b1'&&b2')
          , PatMatch (e,pats) )

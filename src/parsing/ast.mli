@@ -12,7 +12,22 @@ type exprid = int
 
 type annotation = exprid Position.located
 
-type se = bool * bool (* side effects : (expr, app) *)
+module SE : sig
+  type t = bool * bool (* side effects : (expr, app) *)
+
+  val is_full_pure : t -> bool
+  val is_0pure : t -> bool
+  val is_1pure : t -> bool
+
+  val pure1 : t
+  val pure0 : t (* c_se *)
+  val n_pure : t (* r_se *)
+
+
+  val of_int : int -> t
+end
+
+type se = SE.t
 type st_env = se VarMap.t (* var -> stable *)
 
 module PureEnv : Set.S with type elt = varname
@@ -78,13 +93,9 @@ val position_of_se_expr : ((annotation * 's), 'a, 'b) t -> Position.t
 
 (* side-effects... *)
 val se_of : ('a * 's) * 'b -> 's
-val is_reduced : (('a * se), 'b, 'c) t -> bool
 val is_pure : (('a * se), 'b, 'c) t -> bool
+val is_0pure : (('a * se), 'b, 'c) t -> bool
 val is_1pure : (('a * se), 'b, 'c) t -> bool
-val pure : se
-val n_pure : se
-val const_se : se
-val se_of_int : int -> se
 
 val new_annot : Position.t -> annotation
 val copy_annot : annotation -> annotation

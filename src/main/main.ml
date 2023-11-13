@@ -73,21 +73,22 @@ type parsing_result =
 
 let builtin_functions =
   let open Variable in
+  let open Ast.SE in
   let arith_operators_typ, arith_unary_op_typ =
     let int = cons int_typ in
     let arith_u_op = mk_arrow int int in
      mk_arrow int (arith_u_op |> cons)
     ,arith_u_op
   in
-  [ ("+"       , arith_operators_typ, Ast.pure)
-  ; ("-"       , arith_operators_typ, Ast.pure)
-  ; ("*"       , arith_operators_typ, Ast.pure)
-  ; ("/"       , arith_operators_typ, Ast.pure)
-  ; ("%"       , arith_operators_typ, Ast.pure)
-  ; ("succ"    , arith_unary_op_typ , Ast.pure)
-  ; (ref_create, fun_create_ref_typ , Ast.n_pure)
-  ; (ref_get   , fun_get_ref_typ    , Ast.n_pure)
-  ; (ref_set   , fun_set_ref_typ    , Ast.n_pure)
+  [ ("+"       , arith_operators_typ, pure1)
+  ; ("-"       , arith_operators_typ, pure1)
+  ; ("*"       , arith_operators_typ, pure1)
+  ; ("/"       , arith_operators_typ, pure1)
+  ; ("%"       , arith_operators_typ, pure1)
+  ; ("succ"    , arith_unary_op_typ , pure1)
+  ; (ref_create, fun_create_ref_typ , n_pure)
+  ; (ref_get   , fun_get_ref_typ    , n_pure)
+  ; (ref_set   , fun_set_ref_typ    , n_pure)
   ]
 
 let initial_varm =
@@ -108,7 +109,7 @@ let initial_penv =
   let open Ast in
   builtin_functions
   |> List.fold_left (fun penv (name, _, se) ->
-         if se = pure
+         if SE.is_full_pure se
          then PureEnv.add name penv
          else penv
        ) PureEnv.empty
