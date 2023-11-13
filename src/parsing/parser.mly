@@ -180,10 +180,13 @@ simple_term:
 | a=atomic_term DIFF id=ID { annot $startpos $endpos (RecordUpdate (a,id,None)) }
 | LT t=typ p=purity { annot $startpos $endpos (Abstract (t,p)) }
 
-purity:
+purity:// wtf menhir ? Let me remove the spaces between GT and COLON !
   GT { Ast.n_pure }
-| GT COLON i=LINT PURE { Ast.se_of_int i }
-| GTCOL i=LINT PURE { Ast.se_of_int i }
+| GT COLON p=pure { p }
+| GTCOL p=pure { p }
+
+%inline pure:
+  i=LINT PURE { Ast.se_of_int i }
 
 infix_term:
   x=infix { annot $startpos $endpos (Var x) }
