@@ -15,14 +15,19 @@ type annotation = exprid Position.located
 module SE : sig
   type t = bool * bool (* side effects : (expr, app) *)
 
-  val is_full_pure : t -> bool
-  val is_0pure : t -> bool
-  val is_1pure : t -> bool
-
   val pure1 : t
   val pure0 : t (* c_se *)
   val n_pure : t (* r_se *)
 
+  val is_full_pure : t -> bool
+  val is_0pure : t -> bool
+  val is_1pure : t -> bool
+
+  val cons : bool -> t -> t
+  val tl : t -> t
+  val hd : t -> bool
+  val chd : bool -> t -> t
+  val zip : t -> t -> t
 
   val of_int : int -> t
 end
@@ -30,7 +35,8 @@ end
 type se = SE.t
 type st_env = se VarMap.t (* var -> stable *)
 
-module PureEnv : Set.S with type elt = varname
+module PureEnv : Map.S with type key = varname
+type penv = SE.t PureEnv.t
 
 type const =
   | Unit | Nil
@@ -103,7 +109,7 @@ val copy_annot : annotation -> annotation
 val dummy_pat_var : Variable.t
 
 val parser_expr_to_annot_expr :
-  type_env -> var_type_env -> name_var_map -> PureEnv.t
+  type_env -> var_type_env -> name_var_map -> penv
   -> parser_expr -> annot_expr
 
 (*val unannot : annot_expr -> expr*)

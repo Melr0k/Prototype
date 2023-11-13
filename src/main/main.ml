@@ -73,13 +73,13 @@ type parsing_result =
 
 let builtin_functions =
   let open Variable in
-  let open Ast.SE in
   let arith_operators_typ, arith_unary_op_typ =
     let int = cons int_typ in
     let arith_u_op = mk_arrow int int in
      mk_arrow int (arith_u_op |> cons)
     ,arith_u_op
   in
+  let open Ast.SE in
   [ ("+"       , arith_operators_typ, pure1)
   ; ("-"       , arith_operators_typ, pure1)
   ; ("*"       , arith_operators_typ, pure1)
@@ -108,13 +108,11 @@ let initial_env =
 let initial_penv =
   let open Ast in
   builtin_functions
-  |> List.fold_left (fun penv (name, _, se) ->
-         if SE.is_full_pure se
-         then PureEnv.add name penv
-         else penv
-       ) PureEnv.empty
+  |> List.fold_left
+       (fun penv (name, _, se) -> PureEnv.add name se penv)
+       PureEnv.empty
 
-let parse_and_resolve f varm penv =
+let parse_and_resolve f varm (penv:Ast.penv) =
   let last_pos = ref Position.dummy in
   try
     let ast =
@@ -135,9 +133,8 @@ let parse_and_resolve f varm penv =
                       tenv empty_vtenv varm penv expr in
          let var = Variable.create_other (Some name) in
          Variable.attach_location var (Position.position annot) ;
-         let penv = if Ast.is_pure expr
-                    then Ast.PureEnv.add name penv
-                    else penv in
+         let penv =
+           Ast.(PureEnv.add name SE.(se_of expr |> tl |> cons true) penv) in
          let varm = StrMap.add name var varm in
          (tenv,varm,penv,(log,(var,expr,tyo))::defs)
       | Ast.Atoms lst ->

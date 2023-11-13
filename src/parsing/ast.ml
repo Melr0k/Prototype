@@ -15,13 +15,19 @@ type annotation = exprid Position.located
 module SE = struct
   type t = bool * bool [@@deriving ord]
 
+  let pure1 = (true, true)
+  let pure0 = (true, false)
+  let n_pure = (false, false)
+
   let is_full_pure (b,b') = b && b'
   let is_0pure (b,_) = b
   let is_1pure (_,b) = b
 
-  let pure1 = (true, true)
-  let pure0 = (true, false)
-  let n_pure = (false, false)
+  let cons a (b,_) = (a,b)
+  let tl (_,b') = (b', false)
+  let hd (b,_) = b
+  let chd a (b,b') = (a && b, b')
+  let zip (b1,b1') (b2,b2') = (b1&&b2, b1'&&b2')
 
   let of_int = function (* for parser purposes *)
     | 0 -> (true, false)
@@ -32,7 +38,8 @@ end
 type se = SE.t [@@deriving ord]
 type st_env = se VarMap.t (* var -> stable *)
 
-module PureEnv = Set.Make(String)
+module PureEnv = Map.Make(String)
+type penv = SE.t PureEnv.t
 
 type const =
   | Unit | Nil
@@ -135,65 +142,66 @@ let is_pure e = se_of e |> SE.is_full_pure
 let is_0pure e = se_of e |> SE.is_0pure
 let is_1pure e = se_of e |> SE.is_1pure
 
-let parser_expr_to_se_expr penv e =
-  let rec aux penv (a,e) =
+let parser_expr_to_se_expr (penv:penv) e =
+  let rec aux (penv:penv) (a,e) =
+    let open SE in
     let args aux penv e =
       let e = aux penv e in
-      let b,b' = se_of e in
-      (b,b',e)
+      let s = se_of e in
+      (s,e)
     in
     let se,e = match e with
       | Abstract (t,p) -> p, Abstract (t,p)
-      | Const c -> SE.pure0, Const c
+      | Const c -> pure0, Const c
       | Var v ->
-         (if PureEnv.mem v penv
-          then SE.pure1
-          else SE.pure0 )
+         (match PureEnv.find_opt v penv with
+          | Some se -> se
+          | None -> Format.printf "@{<yellow>@{<bold>Warning:@} variable %s \
+                                   not in penv!@}" v;
+                    pure0 )
         , Var v
       | Lambda (t, v, e) ->
-         let penv = PureEnv.remove v penv in
-         let b,_,e = args aux penv e in
-         ( (true, b)
+         let penv = PureEnv.add v SE.pure0 penv in
+         let s,e = args aux penv e in
+         ( cons true s
          , Lambda (t, v, e) )
       | Fixpoint e ->
          let e = aux penv e in
          ( se_of e
          , Fixpoint e )
       | Ite (e, t, e1, e2) ->
-         let b ,_  ,e  = args aux penv e  in
-         let b1,b1',e1 = args aux penv e1 in
-         let b2,b2',e2 = args aux penv e2 in
-         ( (b&&b1&&b2, b1'&&b2')
+         let s0, e  = args aux penv e  in
+         let s1, e1 = args aux penv e1 in
+         let s2, e2 = args aux penv e2 in
+         ( chd (hd s0) (zip s1 s2)
          , Ite (e, t, e1, e2) )
       | App (e1, e2) ->
-         let b1,b1',e1 = args aux penv e1 in
-         let b2,_  ,e2 = args aux penv e2 in
-         ( (b1&&b1'&&b2, false)
+         let s1, e1 = args aux penv e1 in
+         let s2, e2 = args aux penv e2 in
+         ( chd ((hd s1) && (hd s2)) (tl s1)
          , App (e1, e2) )
       | Let (v, e1, e2) ->
-         let b1,b1',e1 = args aux penv e1 in
-         let penv = if b1 && b1'
-                    then PureEnv.add v penv
-                    else penv in
-         let b2,b2',e2 = args aux penv e2 in
-         ( (b1&&b2, b1'&&b2')
+         let s1, e1 = args aux penv e1 in
+         let penv = PureEnv.add v (cons true (tl s1)) penv in
+         let s2,e2 = args aux penv e2 in
+         ( zip s1 s2
          , Let (v, e1, e2) )
       | Pair (e1, e2)  ->
-         let b1,b1',e1 = args aux penv e1 in
-         let b2,b2',e2 = args aux penv e2 in
-         ( (b1&&b2, b1'&&b2')
+         let s1, e1 = args aux penv e1 in
+         let s2, e2 = args aux penv e2 in
+         ( zip s1 s2
          , Pair (e1, e2) )
       | Projection (p, e) ->
          let e = aux penv e in
          ( se_of e
          , Projection (p, e))
       | RecordUpdate (e1, l, e2)  ->
-         let b1,b1',e1 = args aux penv e1 in
-         let b2,b2',e2 = match e2 with
-           | None -> true,true,None
-           | Some e2 -> let a,b,c = args aux penv e2 in a,b,(Some c)
+         let s1, e1 = args aux penv e1 in
+         let s2, e2 = match e2 with
+           | None -> pure0 ,None
+           | Some e2 -> let s,c = args aux penv e2 in s,(Some c)
          in
-         ( (b1&&b2, b1'&&b2')
+         ( zip s1 s2
          , RecordUpdate (e1, l, e2) )
       | Ref e -> (SE.n_pure, Ref (aux penv e))
       | Read e -> (SE.n_pure, Read (aux penv e))
@@ -203,14 +211,13 @@ let parser_expr_to_se_expr penv e =
          ( se_of e
          , TypeConstr (e,t) )
       | PatMatch (e,pats) ->
-         let b1,b1',e = args aux penv e in
+         let s, e = args aux penv e in
          let pats = List.map (aux_pat penv) pats in
-         let b2,b2' = List.fold_left (fun (x,y) (_,e) ->
-                          let s,t = se_of e in
-                          (x&&s, y&&t)
-                        ) SE.pure1 pats
+         let s' = List.fold_left (fun s (_,e) ->
+                      se_of e |> zip s
+                    ) SE.pure0 pats
          in
-         ( (b1&&b2, b1'&&b2')
+         ( zip s s'
          , PatMatch (e,pats) )
     in
     ((a,se),e)
