@@ -19,7 +19,6 @@ module SE : sig
   val pure0 : t (* c_se *)
   val n_pure : t (* r_se *)
 
-  val is_full_pure : t -> bool
   val is_0pure : t -> bool
   val is_1pure : t -> bool
 
@@ -99,7 +98,6 @@ val position_of_se_expr : ((annotation * 's), 'a, 'b) t -> Position.t
 
 (* side-effects... *)
 val se_of : ('a * 's) * 'b -> 's
-val is_pure : (('a * se), 'b, 'c) t -> bool
 val is_0pure : (('a * se), 'b, 'c) t -> bool
 val is_1pure : (('a * se), 'b, 'c) t -> bool
 

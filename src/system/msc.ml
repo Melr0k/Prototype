@@ -244,7 +244,7 @@ let convert_to_msc ast =
     let rec to_defs_and_a expr_var_map ast =
       let (_, e) = ast in
       let uast = Ast.unannot_and_normalize ast in
-      if Ast.is_pure ast && ExprMap.mem uast expr_var_map
+      if Ast.is_0pure ast && ExprMap.mem uast expr_var_map
       then
         let (_,node) = ExprMap.find uast expr_var_map in
         raise (IsVar (ExprMap.get_el node))

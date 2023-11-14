@@ -19,7 +19,6 @@ module SE = struct
   let pure0 = (true, false)
   let n_pure = (false, false)
 
-  let is_full_pure (b,b') = b && b'
   let is_0pure (b,_) = b
   let is_1pure (_,b) = b
 
@@ -138,7 +137,6 @@ let position_of_expr (a,_) = Position.position a
 let position_of_se_expr ((a,_),_) = Position.position a
 
 let se_of ((_,s),_) = s
-let is_pure e = se_of e |> SE.is_full_pure
 let is_0pure e = se_of e |> SE.is_0pure
 let is_1pure e = se_of e |> SE.is_1pure
 
