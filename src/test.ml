@@ -1,6 +1,6 @@
-let succ = <Int->Int>
+let succ = <Int->Int>:1pure
 
-let aliasing (x : Any -> Any) = 
+let aliasing (x : Any -> Any) =
   let y = x in if x y is Int then (y x) + 1 else 42
 
 let impossible_branch = fun x ->
@@ -40,7 +40,7 @@ let tautology = fun x -> fun y ->
 (* ============== RECURSIVE ============= *)
 
 (* The type deduced for fixpoint can be read as follows
-   forall('c <: 'a -> 'b)('d <:'c). ('c -> 'd) -> 'd 
+   forall('c <: 'a -> 'b)('d <:'c). ('c -> 'd) -> 'd
 *)
 let fixpoint = fun f ->
   let delta = fun x ->
@@ -91,8 +91,8 @@ atom no
 
 let and_ = fun x -> fun y ->
      if x is True then if y is True then y else false else false
-let fst2 = <('a, Any) -> 'a>
-let snd2 = <(Any, 'a) -> 'a>
+let fst2 = <('a, Any) -> 'a>:1pure
+let snd2 = <(Any, 'a) -> 'a>:1pure
 let and2_ = fun x ->
   if fst2 x is True then if snd2 x is True then fst2 x else false else false
 let and2_ = fun x ->
@@ -108,11 +108,11 @@ let is_string = fun x ->
 let is_int = fun x ->
      if x is Int then true else false
 
-let strlen = <(String) -> Int>
+let strlen = <(String) -> Int>:1pure
 
-let add = <Int -> Int -> Int>
+let add = <Int -> Int -> Int>:2pure
 
-let add1 = <Int -> Int>
+let add1 = <Int -> Int>:1pure
 
 let f = <(Int | String) -> Int>
 
@@ -308,11 +308,11 @@ let test = fun x ->
 (*
   version of fixpoint with simpler typing:
 
-  let fixpoint = <(('a -> 'b) -> ('a -> 'b)) -> ('a -> 'b) > 
+  let fixpoint = <(('a -> 'b) -> ('a -> 'b)) -> ('a -> 'b) >
 
   version of fixpoint with the typing deduced by the system:
 
-  let fixpoint = <(('a -> 'b) -> (('a -> 'b) & 'c)) -> (('a -> 'b) & 'c) > 
+  let fixpoint = <(('a -> 'b) -> (('a -> 'b) & 'c)) -> (('a -> 'b) & 'c) >
 *)
 
 let concat_stub concat x y =
@@ -325,11 +325,11 @@ let flatten_ocaml flatten x =
   if x is (Any, Any) then concat (fst x) (flatten (snd x)) else
   (x,nil)
 
-let flatten_ocaml : [['a*]*] -> ['a*] = fixpoint flatten_ocaml 
+let flatten_ocaml : [['a*]*] -> ['a*] = fixpoint flatten_ocaml
 
 let reverse_stub reverse l  =
     if l is Nil then nil else concat (reverse (snd l)) [(fst l)]
-    
+
 let reverse = fixpoint reverse_stub
 
 let reverse_ann : [ ('a)*] -> [('a)*] = reverse
@@ -351,13 +351,13 @@ let foldr_ann : ('a -> 'b -> 'b ) -> [ 'a* ] -> 'b -> 'b = foldr
 let filter_stub filter (f: ('a->True) & ('b -> ~True)) (l:[('a|'b)*]) =
    if l is Nil then nil else
    if l is [Any+] then
-       if f(fst(l)) is True then (fst(l),filter f (snd(l))) else filter f (snd(l))
+     if f(fst(l)) is True then (fst(l),filter f (snd(l))) else filter f (snd(l))
    else 42(3)
 
 let filter = fixpoint filter_stub
 
 let filter2_stub
-  (filter : ((('a & 'b) -> Any) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] )
+  (filter : ((('a & 'b) -> Any) & (('a\'b) -> ~True)) -> ['a*] -> [('a&'b)*] )
   (f : (('a & 'b) -> Any) & (('a\'b) -> ~True))
   (l : [ ('a)*  ] )  =
   (* filter f l = *)
@@ -365,7 +365,8 @@ let filter2_stub
   else
     if f(fst(l)) is True then (fst(l),filter f (snd(l))) else filter f (snd(l))
 
-let filter2 :  ((('a & 'b) -> Any) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] =
+let filter2
+    : ((('a & 'b) -> Any) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] =
       fixpoint filter2_stub
 
 let x = <Int -> Bool>
@@ -378,7 +379,7 @@ let filter2_partial_app = filter2 x
 *)
 
 let filter3_stub
-  (filter : ((('a & 'b) -> True) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] )
+  (filter : ((('a & 'b) -> True) & (('a\'b) -> ~True)) -> ['a*] -> [('a&'b)*] )
   (f : (('a & 'b) -> True) & (('a\'b) -> ~True))
   (l : [ ('a)*  ] )  =
    if l is Nil then nil else
@@ -386,7 +387,7 @@ let filter3_stub
        let t = snd(l) in
        if f h is True then (h ,filter f t) else filter f t
 
-let filter3 :  ((('a & 'b) -> True) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] =
+let filter3 : ((('a&'b) -> True) & (('a\'b) -> ~True)) -> ['a*] -> [('a&'b)*] =
       fixpoint filter3_stub
 
 let filter4_stub
@@ -409,14 +410,17 @@ let filter4_test = filter4 xi (1, (3, (true,(42,nil))))
 
 (* cross typing on the two versions *)
 
-let filter4_as_3 : ((('a & 'b) -> True) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] =
+let filter4_as_3
+    : ((('a & 'b) -> True) & (('a\'b) -> ~True)) -> [ 'a* ] -> [ ('a&'b)* ] =
       fixpoint filter4_stub
 
-let filter3_as_4 : ((('a) -> True) & (('b) -> ~True)) -> [ ('a|'b)* ] -> [ ('a)* ]  =
+let filter3_as_4
+    : ((('a) -> True) & (('b) -> ~True)) -> [ ('a|'b)* ] -> [ ('a)* ]  =
       fixpoint filter3_stub
 
 let filter_classic_stub
-  (filter : (('a) -> Bool) -> [ ('a)* ] -> [ ('a)* ] ) ( f : 'a -> Bool) (l : [ ('a)* ] ) =
+      (filter : (('a) -> Bool) -> [ ('a)* ] -> [ ('a)* ] )
+      ( f : 'a -> Bool) (l : [ ('a)* ] ) =
   (* filter f l = *)
   if l is Nil then nil
   else
@@ -432,7 +436,8 @@ let filter_total_stub
    if l is Nil then nil else
    if f(fst(l)) is True then (fst(l),filter f (snd(l))) else filter f (snd(l))
 
-let filter_total : (('a -> True) & ((~'a) -> ~True)) -> [Any*] -> [ ('a)* ] = fixpoint filter_total_stub
+let filter_total : (('a -> True) & ((~'a) -> ~True)) -> [Any*] -> [ ('a)* ] =
+  fixpoint filter_total_stub
 
 (* DEEP FLATTEN FUNCTION *)
 
@@ -452,7 +457,7 @@ let flatten_stub flatten (x : Tree 'a) =
 
 let flatten = fixpoint flatten_stub
 
-let flatten_ann : (Tree 'a -> ['a*]) = flatten 
+let flatten_ann : (Tree 'a -> ['a*]) = flatten
 
 let test_flatten = flatten ((1,(true,nil)),(((42,(false,nil)),0),"ok"))
 
@@ -463,7 +468,8 @@ type FALSE 'a 'b  =  'a -> 'b -> 'b
 
 let ifthenelse (b : TRUE 'a 'b; FALSE 'a 'b )  x y = b x y
 
-let check :    (TRUE 'c 'd -> 'c -> 'd -> 'c) & (FALSE 'c 'd -> 'c -> 'd -> 'd) = ifthenelse
+let check : (TRUE 'c 'd -> 'c -> 'd -> 'c) & (FALSE 'c 'd -> 'c -> 'd -> 'd) =
+  ifthenelse
 
 (* Parametric types examples *)
 
@@ -559,13 +565,13 @@ let rec filter (f: ('a->Any) & ('b -> ~True)) (l:[('a|'b)*]) =
     then (e, filter f l)
     else filter f l
   end
-    
+
 (* let rec flatten_noannot x =
   if x is Nil then nil else
   if x is [Any*] then concat (flatten (fst x)) (flatten (snd x))
   else (x,nil) *)
 
-let rec flatten (x : Tree('a)) =    
+let rec flatten (x : Tree('a)) =
   if x is Nil then nil else
   if x is [Any*] then concat (flatten (fst x)) (flatten (snd x))
   else (x,nil)
@@ -577,7 +583,7 @@ let rec mapi_aux i f l =
 end
 
 let mapi f l = mapi_aux 0 f l
-  
+
 let rec eval e =
   match e with
   | (:"add", (e1, e2)) -> (eval e1) + (eval e2)
@@ -648,4 +654,4 @@ let rec fold_right f acc l =
   match l with
   :Nil -> acc
   | (x, ll) -> f x (fold_right f acc ll)
-end
+  end

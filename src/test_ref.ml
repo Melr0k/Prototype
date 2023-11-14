@@ -37,3 +37,11 @@ let add = <Int -> Int -> Int>:2pure
 let partial_add = add 5
 
 let result = partial_add 3
+
+let f7 = fun x ->
+  if x is Unit then "Unit"
+  else if x is Nil then "Nil"
+  else if x is String then "String"
+  else x
+
+let f8 = f7 8
