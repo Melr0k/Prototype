@@ -15,12 +15,13 @@ type annotation = exprid Position.located
 module SE : sig
   type t (* side effects : (expr, app) *)
 
-  val pure1 : t
+  val not_pure : t (* r_se *)
   val pure0 : t (* c_se *)
-  val n_pure : t (* r_se *)
+  val pure1 : t
 
   val is_0pure : t -> bool
   val is_1pure : t -> bool
+  val is_npure : int -> t -> bool
 
   val cons : bool -> t -> t
   val tl : t -> t

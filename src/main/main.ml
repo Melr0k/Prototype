@@ -86,9 +86,9 @@ let builtin_functions =
   ; ("/"       , arith_operators_typ, pure1)
   ; ("%"       , arith_operators_typ, pure1)
   ; ("succ"    , arith_unary_op_typ , pure1)
-  ; (ref_create, fun_create_ref_typ , n_pure)
-  ; (ref_get   , fun_get_ref_typ    , n_pure)
-  ; (ref_set   , fun_set_ref_typ    , n_pure)
+  ; (ref_create, fun_create_ref_typ , not_pure)
+  ; (ref_get   , fun_get_ref_typ    , not_pure)
+  ; (ref_set   , fun_set_ref_typ    , not_pure)
   ]
 
 let initial_varm =

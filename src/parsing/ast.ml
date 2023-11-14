@@ -15,12 +15,16 @@ type annotation = exprid Position.located
 module SE = struct
   type t = bool * bool [@@deriving ord]
 
-  let pure1 = (true, true)
+  let not_pure = (false, false) (* not pure *)
   let pure0 = (true, false)
-  let n_pure = (false, false)
+  let pure1 = (true, true)
 
-  let is_0pure (b,_) = b
-  let is_1pure (_,b) = b
+  let is_npure i (b,b') = match i with
+    | 0 -> b
+    | 1 -> b'
+    | _ -> false
+  let is_0pure = is_npure 0
+  let is_1pure = is_npure 1
 
   let cons a (b,_) = (a,b)
   let tl (_,b') = (b', false)
@@ -29,9 +33,9 @@ module SE = struct
   let zip (b1,b1') (b2,b2') = (b1&&b2, b1'&&b2')
 
   let of_int = function (* for parser purposes *)
-    | 0 -> (true, false)
+    | 0 -> pure0
     | x when x > 0 -> pure1
-    | _ -> n_pure
+    | _ -> not_pure
 end
 
 type se = SE.t [@@deriving ord]
@@ -201,9 +205,9 @@ let parser_expr_to_se_expr (penv:penv) e =
          in
          ( zip s1 s2
          , RecordUpdate (e1, l, e2) )
-      | Ref e -> (SE.n_pure, Ref (aux penv e))
-      | Read e -> (SE.n_pure, Read (aux penv e))
-      | Assign (e1,e2) -> (SE.n_pure, Assign (aux penv e1, aux penv e2))
+      | Ref e -> (SE.not_pure, Ref (aux penv e))
+      | Read e -> (SE.not_pure, Read (aux penv e))
+      | Assign (e1,e2) -> (SE.not_pure, Assign (aux penv e1, aux penv e2))
       | TypeConstr (e,t) ->
          let e = aux penv e in
          ( se_of e

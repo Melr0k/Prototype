@@ -181,7 +181,7 @@ simple_term:
 | LT t=typ p=purity { annot $startpos $endpos (Abstract (t,p)) }
 
 purity:// wtf menhir ? Let me remove the spaces between GT and COLON !
-  GT { Ast.SE.n_pure }
+  GT { Ast.SE.not_pure }
 | GT COLON p=pure { p }
 | GTCOL p=pure { p }
 
@@ -197,7 +197,7 @@ prefix_term:
 atomic_term:
   x=generalized_identifier { annot $startpos $endpos (Var x) }
 | l=literal { annot $startpos $endpos (Const l) }
-| MAGIC { annot $startpos $endpos (Abstract ((TBase TEmpty),Ast.SE.n_pure)) }
+| MAGIC { annot $startpos $endpos (Abstract ((TBase TEmpty),Ast.SE.not_pure)) }
 | LPAREN RPAREN { annot $startpos $endpos (Const Unit) }
 | LPAREN t=term RPAREN { t }
 | LPAREN t=term COLON ty=typ RPAREN { annot $startpos $endpos (TypeConstr (t,ty)) }
