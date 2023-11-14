@@ -34,4 +34,6 @@ let f6 = fun x -> if (f2 (succ x)) is 42
 
 let add = <Int -> Int -> Int>:2pure
 
-let test = add 5
+let partial_add = add 5
+
+let result = partial_add 3
