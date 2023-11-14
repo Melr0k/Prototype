@@ -13,28 +13,30 @@ type exprid = int
 type annotation = exprid Position.located
 
 module SE = struct
-  type t = bool * bool [@@deriving ord]
+  type t = bool * bool * bool [@@deriving ord]
 
-  let not_pure = (false, false) (* not pure *)
-  let pure0 = (true, false)
-  let pure1 = (true, true)
+  let not_pure = (false, false, false) (* not pure *)
+  let pure0 = (true, false, false)
+  let pure1 = (true, true, false)
 
-  let is_npure i (b,b') = match i with
+  let is_npure i (b,b',b'') = match i with
     | 0 -> b
     | 1 -> b'
+    | 2 -> b''
     | _ -> false
   let is_0pure = is_npure 0
   let is_1pure = is_npure 1
 
-  let cons a (b,_) = (a,b)
-  let tl (_,b') = (b', false)
-  let hd (b,_) = b
-  let chd a (b,b') = (a && b, b')
-  let zip (b1,b1') (b2,b2') = (b1&&b2, b1'&&b2')
+  let cons a (b,b',_) = (a,b,b')
+  let tl (_,b',b'') = (b',b'', false)
+  let hd (b,_,_) = b
+  let chd a (b,b',b'') = (a && b, b',b'')
+  let zip (b1,b1',b1'') (b2,b2',b2'') = (b1&&b2, b1'&&b2',b1''&&b2'')
 
   let of_int = function (* for parser purposes *)
     | 0 -> pure0
-    | x when x > 0 -> pure1
+    | 1 -> pure1
+    | x when x > 0 -> (true,true,true)
     | _ -> not_pure
 end
 
