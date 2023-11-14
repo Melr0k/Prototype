@@ -99,6 +99,7 @@ val position_of_se_expr : ((annotation * 's), 'a, 'b) t -> Position.t
 
 (* side-effects... *)
 val se_of : ('a * 's) * 'b -> 's
+val is_npure : int -> (('a * se), 'b, 'c) t -> bool
 val is_0pure : (('a * se), 'b, 'c) t -> bool
 val is_1pure : (('a * se), 'b, 'c) t -> bool
 
