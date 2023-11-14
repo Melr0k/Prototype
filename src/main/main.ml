@@ -139,6 +139,9 @@ let parse_and_resolve f varm (penv:Ast.penv) =
          (tenv,varm,penv,(log,(var,expr,tyo))::defs)
       | Ast.Atoms lst ->
          let tenv = List.fold_left define_atom tenv lst in
+         let penv = List.fold_left (fun penv v ->
+                        Ast.(PureEnv.add v SE.pure0 penv))
+                      penv lst in
          (tenv,varm,penv,defs)
       | Ast.Types lst ->
          let (tenv, _) = define_types tenv empty_vtenv lst in
