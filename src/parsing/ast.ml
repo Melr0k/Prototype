@@ -238,7 +238,7 @@ let parser_expr_to_se_expr (penv:penv) e =
       loop []
     in
     let penv = vars_in pat
-               |> List.fold_left (fun a v -> PureEnv.remove v a) penv in
+               |> List.fold_left (fun a v -> PureEnv.add v SE.pure0 a) penv in
     ( (pat :> ('a * se, 'b, varname) pattern) (* 'a not used in patterns ! *)
     , aux penv e)
   in
