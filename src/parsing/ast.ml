@@ -13,30 +13,35 @@ type exprid = int
 type annotation = exprid Position.located
 
 module SE = struct
-  type t = bool * bool * bool [@@deriving ord]
+  type t = bool list [@@deriving ord]
 
-  let not_pure = (false, false, false) (* not pure *)
-  let pure0 = (true, false, false)
-  let pure1 = (true, true, false)
+  let not_pure = [] (* not pure *)
+  let pure0 = [true]
+  let pure1 = [true;true]
 
-  let is_npure i (b,b',b'') = match i with
-    | 0 -> b
-    | 1 -> b'
-    | 2 -> b''
-    | _ -> false
+  let cons a s = a::s
+  let tl = function
+    | [] -> []
+    | _::s -> s
+  let hd = function
+    | [] -> false
+    | x::_ -> x
+  let chd a = function
+    | [] -> []
+    | b::s -> (a && b)::s
+  let rec zip s1 s2 = match s1,s2 with
+    | b1::l1, b2::l2 -> (b1&&b2)::(zip l1 l2)
+    | l,[] | [],l -> l
+
+  let rec is_npure i s = match i with
+    | 0 -> hd s
+    | x when  x > 0 -> tl s |> is_npure (i-1)
+    | _ -> false (* x < 0 *)
   let is_0pure = is_npure 0
   let is_1pure = is_npure 1
 
-  let cons a (b,b',_) = (a,b,b')
-  let tl (_,b',b'') = (b',b'', false)
-  let hd (b,_,_) = b
-  let chd a (b,b',b'') = (a && b, b',b'')
-  let zip (b1,b1',b1'') (b2,b2',b2'') = (b1&&b2, b1'&&b2',b1''&&b2'')
-
   let of_int = function (* for parser purposes *)
-    | 0 -> pure0
-    | 1 -> pure1
-    | x when x > 0 -> (true,true,true)
+    | x when x >= 0 -> List.init (x+1) (fun _ -> true)
     | _ -> not_pure
 end
 
