@@ -13,7 +13,7 @@ type exprid = int
 type annotation = exprid Position.located
 
 module SE : sig
-  type t = bool * bool (* side effects : (expr, app) *)
+  type t (* side effects : (expr, app) *)
 
   val pure1 : t
   val pure0 : t (* c_se *)
