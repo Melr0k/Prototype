@@ -1,7 +1,7 @@
 # Set-Theoretic and Polymorphic Type System Prototype
 
 The web version of this prototype can be tested
-[here](https://e-sh4rk.github.io/Prototype/).
+[here](https://melr0k.github.io/Prototype/).
 
 ## Using the docker image
 
