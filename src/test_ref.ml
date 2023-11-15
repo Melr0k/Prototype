@@ -45,3 +45,13 @@ let f7 = fun x ->
   else x
 
 let f8 = f7 8
+
+let fixpoint = fun f ->
+  let delta = fun x ->
+     f ( fun  v -> ( x x v ))
+  in delta delta
+
+let concat_stub concat x y =
+   (x, concat x y)
+
+let concat : ['a*] -> ['b*] -> ['a* ; 'b*] = fixpoint concat_stub
