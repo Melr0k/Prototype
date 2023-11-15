@@ -31,7 +31,7 @@ module SE = struct
     | b::s -> (a && b)::s
   let rec zip s1 s2 = match s1,s2 with
     | b1::l1, b2::l2 -> (b1&&b2)::(zip l1 l2)
-    | l,[] | [],l -> l
+    | _,[] | [],_ -> []
 
   let rec is_npure i s = match i with
     | 0 -> hd s
