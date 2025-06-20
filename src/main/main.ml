@@ -68,7 +68,7 @@ let type_check_def tenv env (var,expr,typ_annot) =
                retrieve_times ())
 
 type parsing_result =
-  | PSuccess of type_env * ((int * def) list)
+  | PSuccess of type_env * (Ast.SE.t Ast.PureEnv.t) * ((int * def) list)
   | PFailure of Position.t * string
 
 let builtin_functions =
@@ -147,9 +147,9 @@ let parse_and_resolve f varm (penv:Ast.penv) =
          let (tenv, _) = define_types tenv empty_vtenv lst in
          (tenv,varm,penv,defs)
     in
-    let (tenv, _, _, defs) =
+    let (tenv, _, penv, defs) =
       List.fold_left treat_elem (empty_tenv, varm, penv, []) ast in
-    PSuccess (tenv, List.rev defs)
+    PSuccess (tenv, penv, List.rev defs)
   with
   | Ast.LexicalError(pos, msg) -> PFailure (pos, msg)
   | Ast.SyntaxError (pos, msg) -> PFailure (pos, msg)

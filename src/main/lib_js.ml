@@ -23,7 +23,7 @@ let typecheck code callback =
     try (
       match parse_and_resolve
               (`String (Js.to_string code)) initial_varm initial_penv with
-      | PSuccess (tenv, lst) ->
+      | PSuccess (tenv, _, lst) ->
         let ok_answer res =
           `Assoc [("exit_code", `Int 0); ("results", `List (List.rev res))]
         in
