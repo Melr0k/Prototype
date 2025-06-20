@@ -34,9 +34,14 @@ let f6 = fun x -> if (f2 (succ x)) is 42
 
 let add = <Int -> Int -> Int>:2pure
 
-let partial_add = add 5
+let x = let y = !alloc in if y is Int then y else 5
+let int_read = if read is Int then read else 5
 
-let result = partial_add 3
+let partial_add1 = add int_read
+let partial_add2 = add 5
+
+let result1 = partial_add1 3
+let result1 = partial_add2 3
 
 let f7 = fun x ->
   if x is Unit then "Unit"
@@ -55,3 +60,11 @@ let concat_stub concat x y =
    (x, concat x y)
 
 let concat : ['a*] -> ['b*] -> ['a* ; 'b*] = fixpoint concat_stub
+
+let my_ref = ref 5
+
+let unit_ = my_ref := true
+
+let val = !my_ref
+
+(* let res = if (my_ref.set) is Nil -> Any then nil else true *)
