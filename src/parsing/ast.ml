@@ -12,38 +12,79 @@ type exprid = int
 
 type annotation = exprid Position.located
 
-module SE = struct
-  type t = bool list [@@deriving ord]
+module type Effect = sig
+  type e [@@deriving ord]
+  val pure : e
+  val n_pure : e
+  val (@&) : e -> e -> e
+end
+
+module Ebool : Effect = struct
+  type e = bool [@@deriving ord]
+  let pure = true
+  let n_pure = false
+  let (@&) a b = a && b
+end
+
+module type SE_t = sig
+  type t [@@deriving ord]
+  (* side effects : evaluating e to v, the app v e' etc. *)
+
+  include Effect
+
+  val not_pure : t (* r_se *)
+  val pure0 : t (* c_se *)
+  val pure1 : t
+
+  val is_0pure : t -> bool
+  val is_1pure : t -> bool
+  val is_npure : int -> t -> bool
+
+  val cons : e -> t -> t
+  val tl : t -> t
+  val hd : t -> e
+  val chd : e -> t -> t
+  val zip : t -> t -> t
+
+  val of_int : int -> t
+end
+
+module SE_func (E:Effect) : SE_t = struct
+  type t = E.e list [@@deriving ord]
+
+  include E [@@deriving ord]
 
   let not_pure = [] (* not pure *)
-  let pure0 = [true]
-  let pure1 = [true;true]
+  let pure0 = [E.pure]
+  let pure1 = [E.pure;E.pure]
 
   let cons a s = a::s
   let tl = function
     | [] -> []
     | _::s -> s
   let hd = function
-    | [] -> false
+    | [] -> E.n_pure
     | x::_ -> x
   let chd a = function
     | [] -> []
-    | b::s -> (a && b)::s
+    | b::s -> (a @& b)::s
   let rec zip s1 s2 = match s1,s2 with
-    | b1::l1, b2::l2 -> (b1&&b2)::(zip l1 l2)
+    | b1::l1, b2::l2 -> (b1@&b2)::(zip l1 l2)
     | _,[] | [],_ -> []
 
-  let rec is_npure i s = match i with
-    | 0 -> hd s
+  let rec is_npure i (s:t) : bool = match i with
+    | 0 -> (hd s) = pure
     | x when  x > 0 -> tl s |> is_npure (i-1)
     | _ -> false (* x < 0 *)
   let is_0pure = is_npure 0
   let is_1pure = is_npure 1
 
   let of_int = function (* for parser purposes *)
-    | x when x >= 0 -> List.init (x+1) (fun _ -> true)
+    | x when x >= 0 -> List.init (x+1) (fun _ -> E.pure)
     | _ -> not_pure
 end
+
+module SE = SE_func(Ebool)
 
 type se = SE.t [@@deriving ord]
 type st_env = se VarMap.t (* var -> stable *)
@@ -173,7 +214,7 @@ let parser_expr_to_se_expr (penv:penv) e =
       | Lambda (t, v, e) ->
          let penv = PureEnv.add v SE.pure0 penv in
          let s,e = args aux penv e in
-         ( cons true s
+         ( cons SE.pure s
          , Lambda (t, v, e) )
       | Fixpoint e ->
          let e = aux penv e in
@@ -188,11 +229,11 @@ let parser_expr_to_se_expr (penv:penv) e =
       | App (e1, e2) ->
          let s1, e1 = args aux penv e1 in
          let s2, e2 = args aux penv e2 in
-         ( chd ((hd s1) && (hd s2)) (tl s1)
+         ( chd SE.((hd s1) @& (hd s2)) (tl s1)
          , App (e1, e2) )
       | Let (v, e1, e2) ->
          let s1, e1 = args aux penv e1 in
-         let penv = PureEnv.add v (cons true (tl s1)) penv in
+         let penv = PureEnv.add v (cons pure (tl s1)) penv in
          let s2,e2 = args aux penv e2 in
          ( zip s1 s2
          , Let (v, e1, e2) )

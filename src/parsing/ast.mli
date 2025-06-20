@@ -12,8 +12,18 @@ type exprid = int
 
 type annotation = exprid Position.located
 
-module SE : sig
-  type t (* side effects : evaluating e to v, the app v e' etc. *)
+module type Effect = sig
+  type e [@@deriving ord]
+  val pure : e
+  val n_pure : e
+  val (@&) : e -> e -> e
+end
+
+module type SE_t = sig
+  type t [@@deriving ord]
+  (* side effects : evaluating e to v, the app v e' etc. *)
+
+  include Effect [@@deriving ord]
 
   val not_pure : t (* r_se *)
   val pure0 : t (* c_se *)
@@ -23,14 +33,18 @@ module SE : sig
   val is_1pure : t -> bool
   val is_npure : int -> t -> bool
 
-  val cons : bool -> t -> t
+  val cons : e -> t -> t
   val tl : t -> t
-  val hd : t -> bool
-  val chd : bool -> t -> t
+  val hd : t -> e
+  val chd : e -> t -> t
   val zip : t -> t -> t
 
   val of_int : int -> t
 end
+
+module SE_func (E:Effect) : SE_t
+
+module SE : SE_t
 
 type se = SE.t
 type st_env = se VarMap.t (* var -> stable *)

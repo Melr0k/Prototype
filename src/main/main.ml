@@ -134,7 +134,7 @@ let parse_and_resolve f varm (penv:Ast.penv) =
          let var = Variable.create_other (Some name) in
          Variable.attach_location var (Position.position annot) ;
          let penv =
-           Ast.(PureEnv.add name SE.(se_of expr |> tl |> cons true) penv) in
+           Ast.(PureEnv.add name SE.(se_of expr |> tl |> cons pure) penv) in
          let varm = StrMap.add name var varm in
          (tenv,varm,penv,(log,(var,expr,tyo))::defs)
       | Ast.Atoms lst ->
