@@ -15,8 +15,12 @@ type annotation = exprid Position.located
 module type Effect = sig
   type e [@@deriving ord]
   val pure : e
+  val allocate : e
+  val read : e
+  val write : e
   val n_pure : e
   val (@&) : e -> e -> e
+  val is_pure : e -> bool
 end
 
 module type SE_t = sig
@@ -24,6 +28,8 @@ module type SE_t = sig
   (* side effects : evaluating e to v, the app v e' etc. *)
 
   include Effect [@@deriving ord]
+
+  val of_eff : e -> t
 
   val not_pure : t (* r_se *)
   val pure0 : t (* c_se *)

@@ -15,15 +15,36 @@ type annotation = exprid Position.located
 module type Effect = sig
   type e [@@deriving ord]
   val pure : e
+  val allocate : e
+  val read : e
+  val write : e
   val n_pure : e
   val (@&) : e -> e -> e
+  val is_pure : e -> bool
 end
 
 module Ebool : Effect = struct
   type e = bool [@@deriving ord]
   let pure = true
+  let allocate = false
+  let read = false
+  let write = false
   let n_pure = false
   let (@&) a b = a && b
+  let is_pure e = e
+end
+
+module Eset : Effect = struct
+  module Kind = struct type t = Al | Rd | Wr [@@deriving ord] end
+  module ESet = Set.Make (Kind)
+  type e = ESet.t [@@deriving ord]
+  let pure = ESet.empty
+  let allocate = ESet.of_list [Al]
+  let read = ESet.of_list [Rd]
+  let write = ESet.of_list [Wr]
+  let n_pure = ESet.of_list [Al;Rd;Wr]
+  let (@&) a b = ESet.union a b
+  let is_pure e = (ESet.cardinal e) = 0
 end
 
 module type SE_t = sig
@@ -31,6 +52,8 @@ module type SE_t = sig
   (* side effects : evaluating e to v, the app v e' etc. *)
 
   include Effect
+
+  val of_eff : e -> t
 
   val not_pure : t (* r_se *)
   val pure0 : t (* c_se *)
@@ -54,7 +77,9 @@ module SE_func (E:Effect) : SE_t = struct
 
   include E [@@deriving ord]
 
-  let not_pure = [] (* not pure *)
+  let of_eff e = [e]
+
+  let not_pure = [n_pure]
   let pure0 = [E.pure]
   let pure1 = [E.pure;E.pure]
 
@@ -72,8 +97,8 @@ module SE_func (E:Effect) : SE_t = struct
     | b1::l1, b2::l2 -> (b1@&b2)::(zip l1 l2)
     | _,[] | [],_ -> []
 
-  let rec is_npure i (s:t) : bool = match i with
-    | 0 -> (hd s) = pure
+  let rec is_npure i s = match i with
+    | 0 -> E.is_pure (hd s)
     | x when  x > 0 -> tl s |> is_npure (i-1)
     | _ -> false (* x < 0 *)
   let is_0pure = is_npure 0
@@ -254,9 +279,9 @@ let parser_expr_to_se_expr (penv:penv) e =
          in
          ( zip s1 s2
          , RecordUpdate (e1, l, e2) )
-      | Ref e -> (SE.not_pure, Ref (aux penv e))
-      | Read e -> (SE.not_pure, Read (aux penv e))
-      | Assign (e1,e2) -> (SE.not_pure, Assign (aux penv e1, aux penv e2))
+      | Ref e -> (SE.(of_eff allocate), Ref (aux penv e))
+      | Read e -> (SE.(of_eff read), Read (aux penv e))
+      | Assign (e1,e2) -> (SE.(of_eff write), Assign (aux penv e1, aux penv e2))
       | TypeConstr (e,t) ->
          let e = aux penv e in
          ( se_of e
