@@ -115,15 +115,18 @@ and expr_to_t filename (expr:PC.Expression.t) : rtype =
 
 and stmt_to_t filename (stmt:PC.Statement.t) : rtype
   = match stmt with
-  | FunctionDef {location;name;args;body;decorator_list;returns;type_comment}
-    -> ignore (location,name,args,body,decorator_list,returns,type_comment);
+  | FunctionDef {location;name;args;body;decorator_list;returns;
+                 type_comment;type_params}
+    -> ignore (location,name,args,body,decorator_list,returns,
+               type_comment,type_params);
        failwith "No translation yet"
   | AsyncFunctionDef {location;name;args;body;decorator_list;returns;
-                      type_comment}
-    -> ignore (location,name,args,body,decorator_list,returns,type_comment);
+                      type_comment;type_params}
+    -> ignore (location,name,args,body,decorator_list,returns,
+               type_comment,type_params);
        failwith "No translation yet"
-  | ClassDef {location;name;bases;keywords;body;decorator_list}
-    -> ignore (location,name,bases,keywords,body,decorator_list);
+  | ClassDef {location;name;bases;keywords;body;decorator_list;type_params}
+    -> ignore (location,name,bases,keywords,body,decorator_list,type_params);
        failwith "No translation yet"
   | Return {location;value}
     -> ignore (location,value); failwith "No translation yet"
@@ -131,6 +134,9 @@ and stmt_to_t filename (stmt:PC.Statement.t) : rtype
     -> ignore (location,targets); failwith "No translation yet"
   | Assign {location;targets;value;type_comment}
     -> ignore (location,targets,value,type_comment);
+       failwith "No translation yet"
+  | TypeAlias {location;name;type_params;value}
+    -> ignore (location,name,type_params,value);
        failwith "No translation yet"
   | AugAssign {location;target;op;value}
     -> ignore (location,target,op,value); failwith "No translation yet"
