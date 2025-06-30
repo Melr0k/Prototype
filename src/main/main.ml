@@ -80,15 +80,16 @@ let builtin_functions =
     ,arith_u_op
   in
   let open Ast.SE in
-  [ ("+"       , arith_operators_typ, pure1)
-  ; ("-"       , arith_operators_typ, pure1)
-  ; ("*"       , arith_operators_typ, pure1)
-  ; ("/"       , arith_operators_typ, pure1)
-  ; ("%"       , arith_operators_typ, pure1)
+  let pure2 = Ast.SE.(cons pure pure1) in
+  [ ("+"       , arith_operators_typ, pure2)
+  ; ("-"       , arith_operators_typ, pure2)
+  ; ("*"       , arith_operators_typ, pure2)
+  ; ("/"       , arith_operators_typ, pure2)
+  ; ("%"       , arith_operators_typ, pure2)
   ; ("succ"    , arith_unary_op_typ , pure1)
-  ; (ref_create, fun_create_ref_typ , not_pure)
-  ; (ref_get   , fun_get_ref_typ    , not_pure)
-  ; (ref_set   , fun_set_ref_typ    , not_pure)
+  ; (ref_create, fun_create_ref_typ , of_eff allocate)
+  ; (ref_get   , fun_get_ref_typ    , of_eff read)
+  ; (ref_set   , fun_set_ref_typ    , of_eff write)
   ]
 
 let initial_varm =

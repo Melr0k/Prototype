@@ -4,7 +4,7 @@ let () =
   Printexc.record_backtrace true;
   Colors.add_ansi_marking Format.std_formatter;
   try
-    let fn = ref "test.ml" in
+    let fn = ref "test_ref.ml" in
     if Array.length Sys.argv > 1 then fn := Sys.argv.(1) ;
     match parse_and_resolve (`File !fn) initial_varm initial_penv with
     | PSuccess (tenv, _, lst) ->

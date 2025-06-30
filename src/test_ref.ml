@@ -65,6 +65,8 @@ let my_ref = ref 5
 
 let unit_ = my_ref := true
 
-let val = !my_ref
+let value = !my_ref
+
+let mix = fun x -> (ref 2, !my_ref)
 
 (* let res = if (my_ref.set) is Nil -> Any then nil else true *)
